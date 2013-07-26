@@ -90,7 +90,7 @@ SimpleGraph = function(elemid, options) {
       .attr("viewBox", "0 0 "+this.size.width+" "+this.size.height)
       .attr("class", "line")
       .append("path")
-          .attr("class", "line")
+          .attr("class", "line line1")
           .attr("d", this.line(this.points));
 
   this.vis.append("svg")
@@ -101,7 +101,7 @@ SimpleGraph = function(elemid, options) {
       .attr("viewBox", "0 0 "+this.size.width+" "+this.size.height)
       .attr("class", "line")
       .append("path")
-          .attr("class", "line")
+          .attr("class", "line line2")
           .attr("d", this.line2(this.points2));
 
   // add Chart Title
