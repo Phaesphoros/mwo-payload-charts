@@ -60,4 +60,3 @@ var engineWeight_STD = new Array();
 	engineWeight_STD[390] = 53;
 	engineWeight_STD[395] = 56;
 	engineWeight_STD[400] = 59.5;
-
