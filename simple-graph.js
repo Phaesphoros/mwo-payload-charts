@@ -182,7 +182,8 @@ SimpleGraph.prototype.update = function() {
   //var lines = this.vis.select("path").attr("d", this.line(this.points));
   this.vis.selectAll("path").attr("d", this.line(this.points));
   this.vis.select("path").attr("d", this.line2(this.points2));
-        
+
+  /*
   var circle = this.vis.select("svg").selectAll("circle")
       .data(this.points, function(d) { return d; });
 
@@ -202,7 +203,7 @@ SimpleGraph.prototype.update = function() {
       .attr("cy",    function(d) { return self.y(d.y); });
 
   circle.exit().remove();
-
+  */
   if (d3.event && d3.event.keyCode) {
     d3.event.preventDefault();
     d3.event.stopPropagation();
