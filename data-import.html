@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		
+		<script type="text/javascript" src="engine-weight.js" charset="utf-8"></script>
+		<script type="text/javascript" src="mech-variants.js" charset="utf-8"></script>
+		
+		<script type="text/javascript">
+			Array.prototype.prevIndex = function(index)
+			{
+				for(; index > 0; --index)
+				{
+					if(null != this[index])
+					{
+						break;
+					}
+				}
+				
+				return index;
+			}
+			Array.prototype.nextIndex = function(index)
+			{
+				for(; index < this.length-1; ++index)
+				{
+					if(null != this[index])
+					{
+						break;
+					}
+				}
+				
+				return index;
+			}
+			
+			for(kMechType in mechs)
+			{
+				document.write(kMechType + " ("+mechs[kMechType].maxTonnage+" t): <ul>");
+				for(kMechVariant in mechs[kMechType].variants)
+				{
+					var currVariant = mechs[kMechType].variants[kMechVariant];
+					document.write( "<li>"+kMechVariant
+					               +": "+engineWeight_STD.prevIndex(currVariant.minEngine)
+					               +" to "+engineWeight_STD.prevIndex(currVariant.maxEngine)
+					               +"</li>");
+				}
+				document.write("</ul>");
+			}
+		</script>
+	</head>
+
+	<body>
+	</body>
+</html>
+
