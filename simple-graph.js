@@ -46,13 +46,11 @@ SimpleGraph = function(elemid, options) {
 
   this.dragged = this.selected = null;
 
+  // function data point -> x/y coordinates,
+  // using the x-scale `this.x` and y-scale `this.y`
   this.line = d3.svg.line()
-      .x(function(d, i) { return this.x(this.points[i].x); })
-      .y(function(d, i) { return this.y(this.points[i].y); });
-
-  this.line2 = d3.svg.line()
-      .x(function(d, i) { return this.x(this.points2[i].x); })
-      .y(function(d, i) { return this.y(this.points2[i].y); });
+      .x(function(d, i) { return this.x(d.x); })
+      .y(function(d, i) { return this.y(d.y); });
 
   var xrange =  (this.options.xmax - this.options.xmin),
       yrange2 = (this.options.ymax - this.options.ymin) / 2,
@@ -82,18 +80,25 @@ SimpleGraph = function(elemid, options) {
       .on("touchstart.drag", self.plot_drag())
       this.plot.call(d3.behavior.zoom().x(this.x).y(this.y).on("zoom", this.redraw()));
 
-  this.vis.append("svg")
+  var innerSvg = this.vis.append("svg")
       .attr("top", 0)
       .attr("left", 0)
       .attr("width", this.size.width)
       .attr("height", this.size.height)
       .attr("viewBox", "0 0 "+this.size.width+" "+this.size.height)
-      .attr("class", "line")
-      .append("path")
-          .attr("class", "line line1")
-          .attr("d", this.line(this.points));
+      .attr("class", "line");
+  
+  innerSvg.append("path")
+    .attr("class", "line line1")
+    .attr("id", "line1")
+    .attr("d", this.line(this.points));
+  
+  innerSvg.append("path")
+    .attr("class", "line line2")
+    .attr("id", "line2")
+    .attr("d", this.line(this.points2));
 
-  this.vis.append("svg")
+/*  this.vis.append("svg")
       .attr("top", 0)
       .attr("left", 0)
       .attr("width", this.size.width)
@@ -102,7 +107,7 @@ SimpleGraph = function(elemid, options) {
       .attr("class", "line")
       .append("path")
           .attr("class", "line line2")
-          .attr("d", this.line2(this.points2));
+          .attr("d", this.line2(this.points2));*/
 
   // add Chart Title
   if (this.options.title) {
@@ -180,8 +185,8 @@ SimpleGraph.prototype.plot_drag = function() {
 SimpleGraph.prototype.update = function() {
   var self = this;
   //var lines = this.vis.select("path").attr("d", this.line(this.points));
-  this.vis.selectAll("path").attr("d", this.line(this.points));
-  this.vis.select("path").attr("d", this.line2(this.points2));
+  this.vis.select("#line1").attr("d", this.line(this.points));
+  this.vis.select("#line2").attr("d", this.line(this.points2));
 
   /*
   var circle = this.vis.select("svg").selectAll("circle")
