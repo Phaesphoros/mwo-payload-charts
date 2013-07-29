@@ -85,11 +85,7 @@ SimpleGraph = function(elemid, options) {
   // add a SVG group and translate it to the designated chart canvas position
   this.vis = this.mainSvg.append("g")
         .attr("transform", "translate(" + this.padding.left + "," + this.padding.top + ")");
-  
-  // add event handler for zooming
-  var zoom = d3.behavior.zoom().x(this.x).y(this.y).on("zoom", this.redraw());
-  this.vis.call(zoom);
- 
+   
   // create an grey background rectangle
   this.chartBg = this.vis.append("rect")
       .attr("id", "chartBg")
@@ -99,6 +95,13 @@ SimpleGraph = function(elemid, options) {
       .attr("pointer-events", "all")
       .on("mousedown.drag", self.plot_drag())
       .on("touchstart.drag", self.plot_drag());
+  
+  // add event handler for zooming
+  var zoom = d3.behavior.zoom().x(this.x).y(this.y).on("zoom", this.redraw());
+  this.chartBg.call(zoom);
+
+  this.gGrid = this.vis.append("g")
+      .attr("id", "gGrid");
   
   // add a clip rectangle for the data lines
   this.vis.append("defs").append("svg:clipPath")
@@ -344,7 +347,7 @@ SimpleGraph.prototype.redraw = function() {
     fy = self.y.tickFormat(10);
 
     // Regenerate x-ticks…
-    var gx = self.vis.selectAll("g.x")
+    var gx = self.gGrid.selectAll("g.x")
         .data(self.x.ticks(10), String)
         .attr("transform", tx);
 
@@ -375,7 +378,7 @@ SimpleGraph.prototype.redraw = function() {
     gx.exit().remove();
 
     // Regenerate y-ticks…
-    var gy = self.vis.selectAll("g.y")
+    var gy = self.gGrid.selectAll("g.y")
         .data(self.y.ticks(10), String)
         .attr("transform", ty);
 
@@ -405,6 +408,8 @@ SimpleGraph.prototype.redraw = function() {
         .on("touchstart.drag", self.yaxis_drag());
 
     gy.exit().remove();
+    
+    
     self.chartBg.call(d3.behavior.zoom().x(self.x).y(self.y).on("zoom", self.redraw()));
     self.update();    
   }  
