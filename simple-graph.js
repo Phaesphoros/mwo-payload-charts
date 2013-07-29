@@ -5,28 +5,36 @@ registerKeyboardHandler = function(callback) {
 
 SimpleGraph = function(elemid, options) {
   var self = this;
-  this.chart = document.getElementById(elemid);
-  this.cx = this.chart.clientWidth;
-  this.cy = this.chart.clientHeight;
+
+  // get the <div> node with id elemid
+  this.div_chart = document.getElementById(elemid);
+  
+  // short-cut for client size
+  this.cx = this.div_chart.clientWidth;
+  this.cy = this.div_chart.clientHeight;
+  
+  // set default options
   this.options = options || {};
   this.options.xmax = options.xmax || 30;
   this.options.xmin = options.xmin || 0;
   this.options.ymax = options.ymax || 10;
   this.options.ymin = options.ymin || 0;
-
+  
+  // adjust style according to options (e.g. add padding for title)
   this.padding = {
      "top":    this.options.title  ? 40 : 20,
      "right":                 30,
      "bottom": this.options.xlabel ? 60 : 10,
      "left":   this.options.ylabel ? 70 : 45
   };
-
+  
+  // calculate chart canvas size (excluding title and axis labels)
   this.size = {
     "width":  this.cx - this.padding.left - this.padding.right,
     "height": this.cy - this.padding.top  - this.padding.bottom
   };
 
-  // x-scale
+  // x scaling function
   this.x = d3.scale.linear()
       .domain([this.options.xmin, this.options.xmax])
       .range([0, this.size.width]);
@@ -34,7 +42,7 @@ SimpleGraph = function(elemid, options) {
   // drag x-axis logic
   this.downx = Math.NaN;
 
-  // y-scale (inverted domain)
+  // y scaling (inverted domain for mathematical COS)
   this.y = d3.scale.linear()
       .domain([this.options.ymax, this.options.ymin])
       .nice()
@@ -46,69 +54,77 @@ SimpleGraph = function(elemid, options) {
 
   this.dragged = this.selected = null;
 
-  // function data point -> x/y coordinates,
-  // using the x-scale `this.x` and y-scale `this.y`
+  // function to map data point -> x/y coordinates,
+  // using the x-scaling `this.x` and y-scaling `this.y`
   this.line = d3.svg.line()
       .x(function(d, i) { return this.x(d.x); })
       .y(function(d, i) { return this.y(d.y); });
 
-  var xrange =  (this.options.xmax - this.options.xmin),
-      yrange2 = (this.options.ymax - this.options.ymin) / 2,
-      yrange4 = yrange2 / 2,
-      datacount = this.size.width/30;
-
-  this.points = d3.range(datacount).map(function(i) { 
-    return { x: i * xrange / datacount, y: this.options.ymin + yrange4 + Math.random() * yrange2 }; 
-  }, self);
-
-  this.points2 = d3.range(datacount).map(function(i) { 
-    return { x: i * xrange / datacount, y: this.options.ymin + yrange4 + Math.random() * yrange2 }; 
-  }, self);
-
-  this.vis = d3.select(this.chart).append("svg")
+  //+ create data points
+      var xRangeSize =  (this.options.xmax - this.options.xmin);
+      var yRangeSize_half = (this.options.ymax - this.options.ymin) / 2;
+      var yRangeSize_quarter = yRangeSize_half / 2;
+      var datacount = this.size.width/30;
+      
+      var createRandomDataPoints = function(i)
+      {
+          return {   x: i * xRangeSize / datacount
+                   , y: this.options.ymin + yRangeSize_quarter + Math.random() * yRangeSize_half };
+      };
+      
+      this.points  = d3.range(datacount).map(createRandomDataPoints, self);
+      this.points2 = d3.range(datacount).map(createRandomDataPoints, self);
+  //- data points created
+  
+  
+  // append main <svg> node to chart <div> node
+  this.mainSvg = d3.select(this.div_chart).append("svg")
       .attr("width",  this.cx)
-      .attr("height", this.cy)
-      .append("g")
+      .attr("height", this.cy);
+  
+  // add a SVG group and translate it to the designated chart canvas position
+  this.vis = this.mainSvg.append("g")
         .attr("transform", "translate(" + this.padding.left + "," + this.padding.top + ")");
-
-  this.plot = this.vis.append("rect")
+  
+  // add event handler for zooming
+  var zoom = d3.behavior.zoom().x(this.x).y(this.y).on("zoom", this.redraw());
+  this.vis.call(zoom);
+ 
+  // create an grey background rectangle
+  this.chartBg = this.vis.append("rect")
+      .attr("id", "chartBg")
       .attr("width", this.size.width)
       .attr("height", this.size.height)
       .style("fill", "#EEEEEE")
       .attr("pointer-events", "all")
       .on("mousedown.drag", self.plot_drag())
-      .on("touchstart.drag", self.plot_drag())
-      this.plot.call(d3.behavior.zoom().x(this.x).y(this.y).on("zoom", this.redraw()));
-
-  var innerSvg = this.vis.append("svg")
-      .attr("top", 0)
-      .attr("left", 0)
-      .attr("width", this.size.width)
-      .attr("height", this.size.height)
-      .attr("viewBox", "0 0 "+this.size.width+" "+this.size.height)
-      .attr("class", "line");
+      .on("touchstart.drag", self.plot_drag());
   
-  innerSvg.append("path")
-    .attr("class", "line line1")
-    .attr("id", "line1")
-    .attr("d", this.line(this.points));
+  // add a clip rectangle for the data lines
+  this.vis.append("defs").append("svg:clipPath")
+    .attr("id", "chartContentClip")
+    .append("svg:rect")
+    .attr("x", "0")
+    .attr("y", "0")
+    .attr("width", this.size.width)
+    .attr("height", this.size.height);
   
-  innerSvg.append("path")
-    .attr("class", "line line2")
-    .attr("id", "line2")
-    .attr("d", this.line(this.points2));
-
-/*  this.vis.append("svg")
-      .attr("top", 0)
-      .attr("left", 0)
-      .attr("width", this.size.width)
-      .attr("height", this.size.height)
-      .attr("viewBox", "0 0 "+this.size.width+" "+this.size.height)
-      .attr("class", "line")
-      .append("path")
-          .attr("class", "line line2")
-          .attr("d", this.line2(this.points2));*/
-
+  // add a group for the data lines
+  var gLines = this.vis.append("g")
+    .attr("clip-path", "url(#chartContentClip)");
+  
+  //+ add data lines
+      gLines.append("path")
+        .attr("class", "line line1")
+        .attr("id", "line1")
+        .attr("d", this.line(this.points));
+      
+      gLines.append("path")
+        .attr("class", "line line2")
+        .attr("id", "line2")
+        .attr("d", this.line(this.points2));
+  //- data lines added
+  
   // add Chart Title
   if (this.options.title) {
     this.vis.append("text")
@@ -139,7 +155,7 @@ SimpleGraph = function(elemid, options) {
         .attr("transform","translate(" + -40 + " " + this.size.height/2+") rotate(-90)");
   }
 
-  d3.select(this.chart)
+  d3.select(this.div_chart)
       .on("mousemove.drag", self.mousemove())
       .on("touchmove.drag", self.mousemove())
       .on("mouseup.drag",   self.mouseup())
@@ -389,7 +405,7 @@ SimpleGraph.prototype.redraw = function() {
         .on("touchstart.drag", self.yaxis_drag());
 
     gy.exit().remove();
-    self.plot.call(d3.behavior.zoom().x(self.x).y(self.y).on("zoom", self.redraw()));
+    self.chartBg.call(d3.behavior.zoom().x(self.x).y(self.y).on("zoom", self.redraw()));
     self.update();    
   }  
 }
