@@ -1,16 +1,12 @@
-registerKeyboardHandler = function(callback) {
-  var callback = callback;
-  d3.select(window).on("keydown", callback);  
-};
+"use strict";
 
 
-
-
-Array.prototype.prevIndex = function(index) // can return -1
+//Array.prototype.prevIndex = function(index) // can return -1
+function prevIndex(arr, index)
 {
     for(; index > 0; --index)
     {
-        if(null != this[index])
+        if(null != arr[index])
         {
             break;
         }
@@ -18,11 +14,12 @@ Array.prototype.prevIndex = function(index) // can return -1
 
     return index;
 }
-Array.prototype.nextIndex = function(index)
+//Array.prototype.nextIndex = function(index)
+function nextIndex(arr, index)
 {
-    for(; index < this.length-1; ++index)
+    for(; index < arr.length-1; ++index)
     {
-        if(null != this[index])
+        if(null != arr[index])
         {
             break;
         }
@@ -35,63 +32,64 @@ Array.prototype.nextIndex = function(index)
 function getSomeElement(obj)
 {
     for(var prop in obj)
-        return obj.prop;
+        return obj[prop];
 }
 
 
-function MechData()
+var MechData =
 {
-    this.oAllMechsByType = oMechsByType;
+      oAllMechsByType: oMechsByType
+    , aEngineWeights_STD: aEngineWeights_STD
+    , aEngineWeights_XL: aEngineWeights_XL
+};
 
-    this.aEngineWeight_STD = aEngineWeight_STD;
-    this.aEngineWeight_XL = aEngineWeight_XL;
-}
-MechData.prototype.listAvailableEngines_between = function(minRating, maxRating, XL)
+MechData.listAvailableEngines_between = function(p_minRating, p_maxRating, p_isXL)
 {
-    var engines = XL ? this.aEngineWeight_XL : this.aEngineWeight_STD;
+    var engines = p_isXL ? MechData.aEngineWeights_XL : MechData.aEngineWeights_STD;
 
-    minRating = engines.nextIndex(minRating);
-    maxRating = engines.prevIndex(maxRating);
+    p_minRating = nextIndex(engines, p_minRating);
+    p_maxRating = prevIndex(engines, p_maxRating);
 
     var aRet = new Array();
     do
     {
-        aRet.push(minRating);
-        minRating = engines.nextIndex(minRating+1);
-    }while(minRating <= maxRating)
+        aRet.push(p_minRating);
+        p_minRating = nextIndex(engines, p_minRating+1);
+    }while(p_minRating <= p_maxRating)
 
     return aRet;
 }
 
-MechData.prototype.sortByTonnage = function(p_oMechsByType)
+// returns a sparse Array
+MechData.sortByTonnage = function(p_oMechsByType)
 {
-    var oMechsByTonnage = new Object();
+    var aMechsByTonnage = new Array();
     
-    for(var kMechType in p_oMechsByTypemechs)
+    for(var kMechType in p_oMechsByType)
     {
-        var mech = p_oMechsByType[kMechType];
-        var tonnage = p_oMechsByType.tonnage;
+        var mechType = p_oMechsByType[kMechType];
+        var tonnage = mechType.maxTonnage;
         
-        if(oMechsByTonnage[tonnage] == null)
+        if(typeof aMechsByTonnage[tonnage] === 'undefined' || aMechsByTonnage[tonnage] === null)
         {
-            oMechsByTonnage[tonnage] = new Array();
+            aMechsByTonnage[tonnage] = new Array();
         }
-        oMechsByTonnage[tonnage].push(mech);
+        aMechsByTonnage[tonnage].push(mechType);
     }
 
-    return oMechsByTonnage;
+    return aMechsByTonnage;
 }
 
 // lists all available engines in [min, max], where
 //   min: minimum engine rating of all passed 'Mechs
 //   max: (like min)
 // returns an Array of engine ratings
-MechData.prototype.listEngines_for_mechs = function(p_oMechsByType, XL)
+MechData.listEngines_for_mechs = function(p_oMechsByType, p_isXL)
 {
-    var engines = XL ? this.aEngineWeight_XL : this.aEngineWeight_STD;
+    var engines = p_isXL ? MechData.aEngineWeights_XL : MechData.aEngineWeights_STD;
     
-    var minEngineRating = engines.prevIndex(engines.length-1);
-    var maxEngineRating = engines.nextIndex(0);
+    var minEngineRating = prevIndex(engines, engines.length-1);
+    var maxEngineRating = nextIndex(engines, 0);
     
     for(var kMechType in p_oMechsByType)
     {
@@ -105,19 +103,24 @@ MechData.prototype.listEngines_for_mechs = function(p_oMechsByType, XL)
         }
     }
 
-    return this.listAvailableEngines_between(minEngineRating, maxEngineRating);
+    return MechData.listAvailableEngines_between(minEngineRating, maxEngineRating);
 }
 // returns an Array of engine lists, ordered by 'Mech max tonnage,
 // where each engine list is a result of listEngines_for_mechs for all 'Mechs with
 // the same max tonnage
-MechData.prototype.listEngines_by_mechMaxTonnage = function(p_aMechsByTonnage, p_XL)
+MechData.listEngines_by_mechMaxTonnage = function(p_aMechsByTonnage, p_isXL)
 {
     var ret = new Array();
-
+    
     for(var kTonnage in p_aMechsByTonnage)
     {
+        if(!p_aMechsByTonnage.hasOwnProperty(kTonnage))
+        {
+            continue;
+        }
+
         var oMechTypesWithSameMaxTonnage = p_aMechsByTonnage[kTonnage];
-        ret.push( this.listEngines_for_mechs(oMechTypesWithSameMaxTonnage, p_XL) );
+        ret.push( MechData.listEngines_for_mechs(oMechTypesWithSameMaxTonnage, p_isXL) );
     }
 
     return ret;
@@ -127,33 +130,42 @@ MechData.prototype.listEngines_by_mechMaxTonnage = function(p_aMechsByTonnage, p
 // where each data point set is an Array of {speed, payload} data points
 // each data point represents one engine rating
 // the parameter `fPayload` shall be a function
-//     {mechMaxTonnage, maxArmor, engine:{rating, xl}} |--> payload
-MechData.prototype.createDataPoints = function(p_aMechsByTonnage, p_XL, p_fPayload)
+//     {mech:{maxTonnage, maxArmor}, engine:{rating, isXL}} |--> payload
+MechData.createDataPoints = function(p_aMechsByTonnage, p_isXL, p_fPayload)
 {
-    var engines_by_mechMaxTonnage = this.listEngines_by_mechMaxTonnage(p_aMechsByTonnage, p_XL);
+    var engines_by_mechMaxTonnage = MechData.listEngines_by_mechMaxTonnage(p_aMechsByTonnage, p_isXL);
 
     var ret = new Array();
     
     var kEngineList = 0;
     for(var kTonnage in p_aMechsByTonnage)
     {
+        if(!p_aMechsByTonnage.hasOwnProperty(kTonnage))
+        {
+            continue;
+        }
+
         var oMechTypes = p_aMechsByTonnage[kTonnage];
         var someMechType = getSomeElement(oMechTypes);
         
         ret.push(new Array());
 
         var aEngineRatings = engines_by_mechMaxTonnage[kEngineList];
-        for(kEngine in aEngines)
+        for(var kEngine in aEngineRatings)
         {
+            if(!aEngineRatings.hasOwnProperty(kEngine))
+            {
+                continue;
+            }
+
             var engineRating = aEngineRatings[kEngine];
             var params =
             {
-                  mechMaxTonnage: someMechType.maxTonnage
-                , maxArmor:       someMechType.maxArmor
-                , engine:         {rating:engineRating, p_XL}
+                  mech:   {maxTonnage: someMechType.maxTonnage, maxArmor: someMechType.maxArmor}
+                , engine: {rating:engineRating, isXL:p_isXL}
             };
             var maxPayload = p_fPayload(params);
-            var maxSpeed = this.maxSpeed(someMechType.maxTonnage, engineRating);
+            var maxSpeed = MechData.maxSpeed(someMechType.maxTonnage, engineRating);
 
             ret[ret.length-1].push({speed:maxSpeed, payload:maxPayload});
         }
@@ -164,47 +176,55 @@ MechData.prototype.createDataPoints = function(p_aMechsByTonnage, p_XL, p_fPaylo
     return ret;
 }
 
-MechData.prototype.maxSpeed = function(p_mechMaxTonnage, p_engineRating)
+MechData.maxSpeed = function(p_mechMaxTonnage, p_engineRating)
 {
-    return p_engineRating / p_maxTonnage * 16.2;
+    return p_engineRating / p_mechMaxTonnage * 16.2;
 }
-MechData.prototype.weight_internalStructure = function(mechMaxTonnage, endo)
+MechData.weight_internalStructure = function(p_mechMaxTonnage, endo)
 {
-    return mechMaxTonnage * (endo ? 0.05 : 0.10);
+    return p_mechMaxTonnage * (endo ? 0.05 : 0.10);
 }
-MechData.prototype.weight_maxArmor = function(mechMaxTonnage, ferro)
+MechData.weight_armorPts = function(p_armorPts, p_ferro)
 {
-    // some 'Mech type of that tonnage
-    var someMechType = getSomeElement(this.oMechs_by_tonnage[mechMaxTonnage]);
-    
-    return someMechType.maxArmor / 32.0 * (ferro ? 0.88 : 1.0);
+    return p_armorPts / 32.0 * (p_ferro ? 0.88 : 1.0);
 }
-MechData.prototype.weight_requiredHS = function(engineRating)
+// the weight of additional extra-engine heat sinks to get to the minimum of 10 HS
+MechData.weight_additionalHS = function(p_engineRating)
 {
-    var internalHS = engineRating / 25;
+    var internalHS = Math.floor(p_engineRating / 25);
     var requiredHS = 10;
     var hsWeight = 1;   // a heat sink weighs 1 ton
     return Math.max(0, hsWeight * (requiredHS - internalHS));
 }
-MechData.prototype.weight_engine = function(engineRating, XL)
+MechData.weight_engine = function(p_engineRating, p_isXL)
 {
-    var engines = XL ? this.aEngineWeight_XL : this.aEngineWeight_STD;
+    var engines = p_isXL ? MechData.aEngineWeights_XL : MechData.aEngineWeights_STD;
 
-    return engines[engineRating];
+    return engines[p_engineRating];
 }
 // using max armor and all modifiers for all 'Mechs
-MechData.prototype.payload_simple = function(mechMaxTonnage, engineRating, XL, endo, ferro)
+MechData.payload_simple = function(p_obj)
 {
-    var payload = mechMaxTonnage;
-        payload -= this.weight_engine(engineRating, XL);
-        payload -= this.weight_requiredHS(engineRating);
-        payload -= this.weight_internalStructure(mechMaxTonnage, endo);
-        payload -= this.weight_maxArmor(mechMaxTonnage, ferro);
+    var payload = p_obj.mech.maxTonnage;
+        payload -= MechData.weight_engine(p_obj.engine.rating, p_obj.engine.isXL);
+        payload -= MechData.weight_additionalHS(p_obj.engine.rating);
+        payload -= MechData.weight_internalStructure(p_obj.mech.maxTonnage, false);
+        payload -= MechData.weight_armorPts(p_obj.mech.maxArmor, false);
     return payload;
 }
 
 
-SimpleGraph = function(elemid, options) {
+
+
+
+var registerKeyboardHandler = function(callback) {
+  var callback = callback;
+  d3.select(window).on("keydown", callback);  
+};
+
+
+function SimpleGraph(elemid, options)
+{
   var self = this;
 
   // get the <div> node with id elemid
@@ -257,9 +277,11 @@ SimpleGraph = function(elemid, options) {
 
   // function to map data point -> x/y coordinates,
   // using the x-scaling `this.x` and y-scaling `this.y`
-  this.line = d3.svg.line()
-      .x(function(d, i) { return this.x(d.x); })
-      .y(function(d, i) { return this.y(d.y); });
+  this.lineGen = d3.svg.line()
+  //    .x(function(d, i) { return this.x(d.x); })
+  //    .x(function(d, i) { return this.x(d.x); })
+      .x(function(d) { return this.x(d.speed); })
+      .y(function(d) { return this.y(d.payload); });
 
   //+ create data points
       /*var xRangeSize =  (this.options.xmax - this.options.xmin);
@@ -276,7 +298,9 @@ SimpleGraph = function(elemid, options) {
       this.points  = d3.range(datacount).map(createRandomDataPoints, self);
       this.points2 = d3.range(datacount).map(createRandomDataPoints, self);
       */
-      this.data = new MechData();
+      var allMechs = MechData.oAllMechsByType;
+      var allMechsByTonnage = MechData.sortByTonnage(allMechs);
+      this.data = MechData.createDataPoints( allMechsByTonnage, false, MechData.payload_simple );
   //- data points created
   
   
@@ -324,14 +348,21 @@ SimpleGraph = function(elemid, options) {
       gLines.append("path")
         .attr("class", "line line1")
         .attr("id", "line1")
-        .attr("d", this.line(this.points));
+        .attr("d", this.lineGen(this.points));
       
       gLines.append("path")
         .attr("class", "line line2")
         .attr("id", "line2")
-        .attr("d", this.line(this.points2));
+        .attr("d", this.lineGen(this.points2));
       */
-
+      for(var kLine in this.data)
+      {
+          var lineData = this.data[kLine];
+          gLines.append("path")
+            .attr("class", "line")
+            .attr("id", "line"+kLine)
+            .attr("d", this.lineGen(lineData));
+      }
   //- data lines added
   
   // add Chart Title
@@ -409,9 +440,17 @@ SimpleGraph.prototype.plot_drag = function() {
 
 SimpleGraph.prototype.update = function() {
   var self = this;
-  //var lines = this.vis.select("path").attr("d", this.line(this.points));
-  this.vis.select("#line1").attr("d", this.line(this.points));
-  this.vis.select("#line2").attr("d", this.line(this.points2));
+  //+ update lines
+      //var lines = this.vis.select("path").attr("d", this.lineGen(this.points));
+      //this.vis.select("#line1").attr("d", this.lineGen(this.points));
+      //this.vis.select("#line2").attr("d", this.lineGen(this.points2));
+      
+      for(var kLine in this.data)
+      {
+          var lineData = this.data[kLine];
+          this.vis.select("#line"+kLine).attr("d", this.lineGen(lineData));
+      }
+  //- lines updated
 
   /*
   var circle = this.vis.select("svg").selectAll("circle")
