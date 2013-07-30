@@ -32,22 +32,16 @@ Array.prototype.nextIndex = function(index)
 }
 
 
+function getSomeElement(obj)
+{
+    for(var prop in obj)
+        return obj.prop;
+}
+
 
 function MechData()
 {
-    this.oMechs_by_type = oMechsByType;
-    this.oMechs_by_tonnage = new Array();
-    for(var kMechType in mechs)
-    {
-        var mech = mechs[kMechType];
-        var tonnage = mech.tonnage;
-        
-        if(this.mechs_by_tonnage[tonnage] == null)
-        {
-            this.mechs_by_tonnage[tonnage] = new Array();
-        }
-        this.mechs_by_tonnage[tonnage].push(mech);
-    }
+    this.oAllMechsByType = oMechsByType;
 
     this.aEngineWeight_STD = aEngineWeight_STD;
     this.aEngineWeight_XL = aEngineWeight_XL;
@@ -69,51 +63,110 @@ MechData.prototype.listAvailableEngines_between = function(minRating, maxRating,
     return aRet;
 }
 
+MechData.prototype.sortByTonnage = function(p_oMechsByType)
+{
+    var oMechsByTonnage = new Object();
+    
+    for(var kMechType in p_oMechsByTypemechs)
+    {
+        var mech = p_oMechsByType[kMechType];
+        var tonnage = p_oMechsByType.tonnage;
+        
+        if(oMechsByTonnage[tonnage] == null)
+        {
+            oMechsByTonnage[tonnage] = new Array();
+        }
+        oMechsByTonnage[tonnage].push(mech);
+    }
 
+    return oMechsByTonnage;
+}
 
-
-#BEGIN ERROR: NO SUPPORT FOR FILTERS==============================================
 // lists all available engines in [min, max], where
-// min: minimum engine rating of all 'Mechs with that tonnage
-// max: (like min)
-MechData.prototype.listEngines_for_mechMaxTonnage = function(mechMaxTonnage, XL)
+//   min: minimum engine rating of all passed 'Mechs
+//   max: (like min)
+// returns an Array of engine ratings
+MechData.prototype.listEngines_for_mechs = function(p_oMechsByType, XL)
 {
     var engines = XL ? this.aEngineWeight_XL : this.aEngineWeight_STD;
     
-    var minEngineRating = engines.nextIndex(0);
-    var maxEngineRating = engines.prevIndex(engines.length-1);
+    var minEngineRating = engines.prevIndex(engines.length-1);
+    var maxEngineRating = engines.nextIndex(0);
     
-    for(var kMechType in this.oMechs_by_tonnage[mechMaxTonnage])
+    for(var kMechType in p_oMechsByType)
     {
-        var variants  = this.oMechs_by_tonnage[mechMaxTonnage][kMechType];
-        for(var kMechVariant in variants)
+        var oVariants  = p_oMechsByType[kMechType].oVariants;
+        for(var kMechVariant in oVariants)
         {
-            var variant = variants[kMechVariant];
+            var variant = oVariants[kMechVariant];
             
             minEngineRating = Math.min(minEngineRating, variant.minEngineRating);
             maxEngineRating = Math.max(maxEngineRating, variant.maxEngineRating);
         }
     }
 
-    return listAvailableEngines_between(minEngineRating, maxEngineRating);
+    return this.listAvailableEngines_between(minEngineRating, maxEngineRating);
 }
-// returns an Array of 'Mech tonnages, where each array element
-// is an Array of engines returned by listEngines_for_tonnage
-MechData.prototype.listEngines_by_mechMaxTonnage = function()
+// returns an Array of engine lists, ordered by 'Mech max tonnage,
+// where each engine list is a result of listEngines_for_mechs for all 'Mechs with
+// the same max tonnage
+MechData.prototype.listEngines_by_mechMaxTonnage = function(p_aMechsByTonnage, p_XL)
 {
     var ret = new Array();
 
-    for(var kTonnage in this.oMechs_by_tonnage)
+    for(var kTonnage in p_aMechsByTonnage)
     {
-        ret.push( this.listEngines_for_mechMaxTonnage(kTonnage) );
+        var oMechTypesWithSameMaxTonnage = p_aMechsByTonnage[kTonnage];
+        ret.push( this.listEngines_for_mechs(oMechTypesWithSameMaxTonnage, p_XL) );
     }
 
     return ret;
 }
-#END ERROR: NO SUPPORT FOR FILTERS====================================================
-MechData.prototype.maxSpeed = function(maxTonnage, engineRating)
+
+// returns an Array of data point sets, ordered by 'Mech max Tonnage,
+// where each data point set is an Array of {speed, payload} data points
+// each data point represents one engine rating
+// the parameter `fPayload` shall be a function
+//     {mechMaxTonnage, maxArmor, engine:{rating, xl}} |--> payload
+MechData.prototype.createDataPoints = function(p_aMechsByTonnage, p_XL, p_fPayload)
 {
-    return engineRating / maxTonnage * 16.2;
+    var engines_by_mechMaxTonnage = this.listEngines_by_mechMaxTonnage(p_aMechsByTonnage, p_XL);
+
+    var ret = new Array();
+    
+    var kEngineList = 0;
+    for(var kTonnage in p_aMechsByTonnage)
+    {
+        var oMechTypes = p_aMechsByTonnage[kTonnage];
+        var someMechType = getSomeElement(oMechTypes);
+        
+        ret.push(new Array());
+
+        var aEngineRatings = engines_by_mechMaxTonnage[kEngineList];
+        for(kEngine in aEngines)
+        {
+            var engineRating = aEngineRatings[kEngine];
+            var params =
+            {
+                  mechMaxTonnage: someMechType.maxTonnage
+                , maxArmor:       someMechType.maxArmor
+                , engine:         {rating:engineRating, p_XL}
+            };
+            var maxPayload = p_fPayload(params);
+            var maxSpeed = this.maxSpeed(someMechType.maxTonnage, engineRating);
+
+            ret[ret.length-1].push({speed:maxSpeed, payload:maxPayload});
+        }
+
+        ++kEngineList;
+    }
+
+    return ret;
+}
+
+MechData.prototype.maxSpeed = function(p_mechMaxTonnage, p_engineRating)
+{
+    return p_engineRating / p_maxTonnage * 16.2;
 }
 MechData.prototype.weight_internalStructure = function(mechMaxTonnage, endo)
 {
@@ -121,7 +174,6 @@ MechData.prototype.weight_internalStructure = function(mechMaxTonnage, endo)
 }
 MechData.prototype.weight_maxArmor = function(mechMaxTonnage, ferro)
 {
-    var getSomeElement = function(obj) { for(var prop in obj) return obj.prop; }
     // some 'Mech type of that tonnage
     var someMechType = getSomeElement(this.oMechs_by_tonnage[mechMaxTonnage]);
     

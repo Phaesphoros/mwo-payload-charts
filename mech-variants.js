@@ -3,7 +3,7 @@ var oMechsByType =
 	{
 		maxTonnage:100,
 		maxArmor:614,
-		variants:
+		oVariants:
 		{
 			  "AS7-D":{minEngineRating:200, maxEngineRating:360}
 			, "AS7-D-DC":{minEngineRating:200, maxEngineRating:360}
@@ -16,7 +16,7 @@ var oMechsByType =
 	{
 		maxTonnage:80,
 		maxArmor:494,
-		variants:
+		oVariants:
 		{
 			  "AWS-8Q":{minEngineRating:160, maxEngineRating:300}
 			, "AWS-8R":{minEngineRating:160, maxEngineRating:300}
@@ -30,7 +30,7 @@ var oMechsByType =
 	{
 		maxTonnage:45,
 		maxArmor:306,
-		variants:
+		oVariants:
 		{
 			  "BJ-1":{minEngineRating:90, maxEngineRating:235}
 			, "BJ-1DC":{minEngineRating:90, maxEngineRating:235}
@@ -42,7 +42,7 @@ var oMechsByType =
 	{
 		maxTonnage:40,
 		maxArmor:274,
-		variants:
+		oVariants:
 		{
 			  "CDA-2A":{minEngineRating:80, maxEngineRating:340}
 			, "CDA-2B":{minEngineRating:80, maxEngineRating:340}
@@ -55,7 +55,7 @@ var oMechsByType =
 	{
 		maxTonnage:50,
 		maxArmor:338,
-		variants:
+		oVariants:
 		{
 			  "CN9-A":{minEngineRating:100, maxEngineRating:275}
 			, "CN9-AH":{minEngineRating:100, maxEngineRating:260}
@@ -68,7 +68,7 @@ var oMechsByType =
 	{
 		maxTonnage:25,
 		maxArmor:178,
-		variants:
+		oVariants:
 		{
 			  "COM-1B":{minEngineRating:50, maxEngineRating:210}
 			, "COM-1D":{minEngineRating:50, maxEngineRating:210}
@@ -81,7 +81,7 @@ var oMechsByType =
 	{
 		maxTonnage:65,
 		maxArmor:422,
-		variants:
+		oVariants:
 		{
 			  "CPLT-A1":{minEngineRating:130, maxEngineRating:315}
 			, "CPLT-C1":{minEngineRating:130, maxEngineRating:315}
@@ -93,7 +93,7 @@ var oMechsByType =
 	{
 		maxTonnage:70,
 		maxArmor:434,
-		variants:
+		oVariants:
 		{
 			  "CTF-1X":{minEngineRating:140, maxEngineRating:340}
 			, "CTF-2X":{minEngineRating:140, maxEngineRating:340}
@@ -107,7 +107,7 @@ var oMechsByType =
 	{
 		maxTonnage:60,
 		maxArmor:402,
-		variants:
+		oVariants:
 		{
 			  "DRG-1C":{minEngineRating:120, maxEngineRating:360}
 			, "DRG-1N":{minEngineRating:120, maxEngineRating:360}
@@ -121,7 +121,7 @@ var oMechsByType =
 	{
 		maxTonnage:50,
 		maxArmor:338,
-		variants:
+		oVariants:
 		{
 			  "HBK-4G":{minEngineRating:100, maxEngineRating:260}
 			, "HBK-4H":{minEngineRating:100, maxEngineRating:260}
@@ -135,7 +135,7 @@ var oMechsByType =
 	{
 		maxTonnage:90,
 		maxArmor:558,
-		variants:
+		oVariants:
 		{
 			  "HGN-732":{minEngineRating:180, maxEngineRating:325}
 			, "HGN-733":{minEngineRating:180, maxEngineRating:325}
@@ -147,7 +147,7 @@ var oMechsByType =
 	{
 		maxTonnage:65,
 		maxArmor:422,
-		variants:
+		oVariants:
 		{
 			  "JM6-A":{minEngineRating:130, maxEngineRating:315}
 			, "JM6-DD":{minEngineRating:130, maxEngineRating:315}
@@ -159,7 +159,7 @@ var oMechsByType =
 	{
 		maxTonnage:35,
 		maxArmor:238,
-		variants:
+		oVariants:
 		{
 			  "JR7-D":{minEngineRating:70, maxEngineRating:300}
 			, "JR7-D(S)":{minEngineRating:70, maxEngineRating:300}
@@ -172,7 +172,7 @@ var oMechsByType =
 	{
 		maxTonnage:70,
 		maxArmor:434,
-		variants:
+		oVariants:
 		{
 			  "MCH-XX":{minEngineRating:140, maxEngineRating:340}
 		}
@@ -181,7 +181,7 @@ var oMechsByType =
 	{
 		maxTonnage:60,
 		maxArmor:402,
-		variants:
+		oVariants:
 		{
 			  "QKD-4G":{minEngineRating:120, maxEngineRating:360}
 			, "QKD-4H":{minEngineRating:120, maxEngineRating:360}
@@ -192,7 +192,7 @@ var oMechsByType =
 	{
 		maxTonnage:35,
 		maxArmor:238,
-		variants:
+		oVariants:
 		{
 			  "RVN-2X":{minEngineRating:70, maxEngineRating:245}
 			, "RVN-3L":{minEngineRating:70, maxEngineRating:295}
@@ -203,7 +203,7 @@ var oMechsByType =
 	{
 		maxTonnage:30,
 		maxArmor:210,
-		variants:
+		oVariants:
 		{
 			  "SDR-5D":{minEngineRating:60, maxEngineRating:255}
 			, "SDR-5K":{minEngineRating:60, maxEngineRating:255}
@@ -214,7 +214,7 @@ var oMechsByType =
 	{
 		maxTonnage:85,
 		maxArmor:526,
-		variants:
+		oVariants:
 		{
 			  "STK-3F":{minEngineRating:80, maxEngineRating:310}
 			, "STK-3H":{minEngineRating:80, maxEngineRating:310}
@@ -228,7 +228,7 @@ var oMechsByType =
 	{
 		maxTonnage:50,
 		maxArmor:338,
-		variants:
+		oVariants:
 		{
 			  "TBT-3C":{minEngineRating:100, maxEngineRating:390}
 			, "TBT-5J":{minEngineRating:100, maxEngineRating:325}
@@ -241,7 +241,7 @@ var oMechsByType =
 	{
 		maxTonnage:80,
 		maxArmor:494,
-		variants:
+		oVariants:
 		{
 			  "VTR-9B":{minEngineRating:160, maxEngineRating:385}
 			, "VTR-9K":{minEngineRating:160, maxEngineRating:385}
