@@ -3,6 +3,155 @@ registerKeyboardHandler = function(callback) {
   d3.select(window).on("keydown", callback);  
 };
 
+
+
+
+Array.prototype.prevIndex = function(index) // can return -1
+{
+    for(; index > 0; --index)
+    {
+        if(null != this[index])
+        {
+            break;
+        }
+    }
+
+    return index;
+}
+Array.prototype.nextIndex = function(index)
+{
+    for(; index < this.length-1; ++index)
+    {
+        if(null != this[index])
+        {
+            break;
+        }
+    }
+
+    return index;
+}
+
+
+
+function MechData()
+{
+    this.oMechs_by_type = oMechsByType;
+    this.oMechs_by_tonnage = new Array();
+    for(var kMechType in mechs)
+    {
+        var mech = mechs[kMechType];
+        var tonnage = mech.tonnage;
+        
+        if(this.mechs_by_tonnage[tonnage] == null)
+        {
+            this.mechs_by_tonnage[tonnage] = new Array();
+        }
+        this.mechs_by_tonnage[tonnage].push(mech);
+    }
+
+    this.aEngineWeight_STD = aEngineWeight_STD;
+    this.aEngineWeight_XL = aEngineWeight_XL;
+}
+MechData.prototype.listAvailableEngines_between = function(minRating, maxRating, XL)
+{
+    var engines = XL ? this.aEngineWeight_XL : this.aEngineWeight_STD;
+
+    minRating = engines.nextIndex(minRating);
+    maxRating = engines.prevIndex(maxRating);
+
+    var aRet = new Array();
+    do
+    {
+        aRet.push(minRating);
+        minRating = engines.nextIndex(minRating+1);
+    }while(minRating <= maxRating)
+
+    return aRet;
+}
+
+
+
+
+#BEGIN ERROR: NO SUPPORT FOR FILTERS==============================================
+// lists all available engines in [min, max], where
+// min: minimum engine rating of all 'Mechs with that tonnage
+// max: (like min)
+MechData.prototype.listEngines_for_mechMaxTonnage = function(mechMaxTonnage, XL)
+{
+    var engines = XL ? this.aEngineWeight_XL : this.aEngineWeight_STD;
+    
+    var minEngineRating = engines.nextIndex(0);
+    var maxEngineRating = engines.prevIndex(engines.length-1);
+    
+    for(var kMechType in this.oMechs_by_tonnage[mechMaxTonnage])
+    {
+        var variants  = this.oMechs_by_tonnage[mechMaxTonnage][kMechType];
+        for(var kMechVariant in variants)
+        {
+            var variant = variants[kMechVariant];
+            
+            minEngineRating = Math.min(minEngineRating, variant.minEngineRating);
+            maxEngineRating = Math.max(maxEngineRating, variant.maxEngineRating);
+        }
+    }
+
+    return listAvailableEngines_between(minEngineRating, maxEngineRating);
+}
+// returns an Array of 'Mech tonnages, where each array element
+// is an Array of engines returned by listEngines_for_tonnage
+MechData.prototype.listEngines_by_mechMaxTonnage = function()
+{
+    var ret = new Array();
+
+    for(var kTonnage in this.oMechs_by_tonnage)
+    {
+        ret.push( this.listEngines_for_mechMaxTonnage(kTonnage) );
+    }
+
+    return ret;
+}
+#END ERROR: NO SUPPORT FOR FILTERS====================================================
+MechData.prototype.maxSpeed = function(maxTonnage, engineRating)
+{
+    return engineRating / maxTonnage * 16.2;
+}
+MechData.prototype.weight_internalStructure = function(mechMaxTonnage, endo)
+{
+    return mechMaxTonnage * (endo ? 0.05 : 0.10);
+}
+MechData.prototype.weight_maxArmor = function(mechMaxTonnage, ferro)
+{
+    var getSomeElement = function(obj) { for(var prop in obj) return obj.prop; }
+    // some 'Mech type of that tonnage
+    var someMechType = getSomeElement(this.oMechs_by_tonnage[mechMaxTonnage]);
+    
+    return someMechType.maxArmor / 32.0 * (ferro ? 0.88 : 1.0);
+}
+MechData.prototype.weight_requiredHS = function(engineRating)
+{
+    var internalHS = engineRating / 25;
+    var requiredHS = 10;
+    var hsWeight = 1;   // a heat sink weighs 1 ton
+    return Math.max(0, hsWeight * (requiredHS - internalHS));
+}
+MechData.prototype.weight_engine = function(engineRating, XL)
+{
+    var engines = XL ? this.aEngineWeight_XL : this.aEngineWeight_STD;
+
+    return engines[engineRating];
+}
+// using max armor and all modifiers for all 'Mechs
+MechData.prototype.payload_simple = function(mechMaxTonnage, engineRating, XL, endo, ferro)
+{
+    var payload = mechMaxTonnage;
+        payload -= this.weight_engine(engineRating, XL);
+        payload -= this.weight_requiredHS(engineRating);
+        payload -= this.weight_internalStructure(mechMaxTonnage, endo);
+        payload -= this.weight_maxArmor(mechMaxTonnage, ferro);
+    return payload;
+}
+
+
 SimpleGraph = function(elemid, options) {
   var self = this;
 
@@ -61,7 +210,7 @@ SimpleGraph = function(elemid, options) {
       .y(function(d, i) { return this.y(d.y); });
 
   //+ create data points
-      var xRangeSize =  (this.options.xmax - this.options.xmin);
+      /*var xRangeSize =  (this.options.xmax - this.options.xmin);
       var yRangeSize_half = (this.options.ymax - this.options.ymin) / 2;
       var yRangeSize_quarter = yRangeSize_half / 2;
       var datacount = this.size.width/30;
@@ -74,6 +223,8 @@ SimpleGraph = function(elemid, options) {
       
       this.points  = d3.range(datacount).map(createRandomDataPoints, self);
       this.points2 = d3.range(datacount).map(createRandomDataPoints, self);
+      */
+      this.data = new MechData();
   //- data points created
   
   
@@ -117,6 +268,7 @@ SimpleGraph = function(elemid, options) {
     .attr("clip-path", "url(#chartContentClip)");
   
   //+ add data lines
+      /*
       gLines.append("path")
         .attr("class", "line line1")
         .attr("id", "line1")
@@ -126,6 +278,8 @@ SimpleGraph = function(elemid, options) {
         .attr("class", "line line2")
         .attr("id", "line2")
         .attr("d", this.line(this.points2));
+      */
+
   //- data lines added
   
   // add Chart Title
