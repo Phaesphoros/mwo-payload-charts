@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <title>One Graph</title>
+    <script type="text/javascript" src="http://mbostock.github.com/d3/d3.v2.js"></script>
+    <script type="text/javascript" src="engine-weights-std.js" charset="utf-8"></script>
+    <script type="text/javascript" src="engine-weights-xl.js" charset="utf-8"></script>
+    <script type="text/javascript" src="mech-variants.js" charset="utf-8"></script>
+    <script type="text/javascript" src="simple-graph.js"></script>
+    <style type="text/css">
+      body { font: 13px sans-serif; }
+      rect { fill: #fff; }
+      ul {
+        list-style-type: none;
+        margin: 0.5em 0em 0.5em 0em;
+        width: 100%; }
+        ul li {
+          display: table-cell;
+          vertical-align: middle;
+          margin: 0em;
+          padding: 0em 1em; }
+      .axis { font-size: 1.5em; }
+      .chart {
+        background-color: #F7F2C5;
+        width: 725px;
+        height: 725px; }
+      .line
+      {
+        fill: none;
+        stroke-width: 2px;
+        stroke: blue;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="chart1" class="chart"></div>
+    <script type="text/javascript">
+      graph = new SimpleGraph("chart1", {
+          "xmax": 140, "xmin": 16,
+          "ymax": 60, "ymin": 0, 
+          "title": "Speed vs Payload overview -- test",
+          "xlabel": "speed [km/h]",
+          "ylabel": "payload [t]"  
+        });
+    </script>
+  </body>
+</html>
