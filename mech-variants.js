@@ -100,7 +100,6 @@ var oMechsByType =
 			, "CTF-3D":{minEngineRating:140, maxEngineRating:340}
 			, "CTF-3L":{minEngineRating:140, maxEngineRating:340}
 			, "CTF-4X":{minEngineRating:140, maxEngineRating:255}
-			, "CTF-HERO01":{minEngineRating:140, maxEngineRating:340}
 		}
 	}
 	, "DRG":
@@ -166,15 +165,6 @@ var oMechsByType =
 			, "JR7-F":{minEngineRating:70, maxEngineRating:300}
 			, "JR7-F(C)":{minEngineRating:70, maxEngineRating:300}
 			, "JR7-K":{minEngineRating:70, maxEngineRating:300}
-		}
-	}
-	, "MCH":
-	{
-		maxTonnage:70,
-		maxArmor:434,
-		oVariants:
-		{
-			  "MCH-XX":{minEngineRating:140, maxEngineRating:340}
 		}
 	}
 	, "QKD":
