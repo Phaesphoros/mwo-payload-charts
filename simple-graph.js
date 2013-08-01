@@ -29,6 +29,43 @@ function nextIndex(arr, index)
 }
 
 
+//+ from https://gist.github.com/Wolfy87/5734530
+	/**
+	 * Performs a binary search on the host array. This method can either be
+	 * injected into Array.prototype or called with a specified scope like this:
+	 * binaryIndexOf.call(someArray, searchElement);
+	 *
+	 * @param {*} searchElement The item to search for within the array.
+	 * @return {Number} The index of the element which defaults to -1 when not found.
+	 */
+	function binaryIndexOf(searchElement) {
+		'use strict';
+	 
+		var minIndex = 0;
+		var maxIndex = this.length - 1;
+		var currentIndex;
+		var currentElement;
+	 
+		while (minIndex <= maxIndex) {
+			currentIndex = (minIndex + maxIndex) / 2 | 0;
+			currentElement = this[currentIndex];
+	 
+			if (currentElement < searchElement) {
+				minIndex = currentIndex + 1;
+			}
+			else if (currentElement > searchElement) {
+				maxIndex = currentIndex - 1;
+			}
+			else {
+				return currentIndex;
+			}
+		}
+	 
+		return -1;
+	}
+//- from https://gist.github.com/Wolfy87/5734530
+
+
 function getSomeElement(obj)
 {
     for(var prop in obj)
@@ -85,6 +122,10 @@ MechData.sortByTonnage = function(p_oMechsByType)
         {
             aMechsByTonnage[tonnage] = new Array();
         }
+        if(! mechType.hasOwnProperty("name"))
+        {
+            mechType.name = kMechType;
+        }
         aMechsByTonnage[tonnage].push(mechType);
     }
 
@@ -116,7 +157,7 @@ MechData.listEngines_for_mechs = function(p_oMechsByType, p_isXL)
 
     return MechData.listAvailableEngines_between(minEngineRating, maxEngineRating);
 }
-// returns an Array of engine lists, ordered by 'Mech max tonnage,
+// returns a sparse Array of 'Mech max tonnage |--> engine list,
 // where each engine list is a result of listEngines_for_mechs for all 'Mechs with
 // the same max tonnage
 MechData.listEngines_by_mechMaxTonnage = function(p_aMechsByTonnage, p_isXL)
@@ -131,15 +172,18 @@ MechData.listEngines_by_mechMaxTonnage = function(p_aMechsByTonnage, p_isXL)
         }
 
         var oMechTypesWithSameMaxTonnage = p_aMechsByTonnage[kTonnage];
-        ret.push( MechData.listEngines_for_mechs(oMechTypesWithSameMaxTonnage, p_isXL) );
+        ret[kTonnage] = MechData.listEngines_for_mechs(oMechTypesWithSameMaxTonnage, p_isXL);
     }
 
     return ret;
 }
 
-// returns an Array of data point sets, ordered by 'Mech max Tonnage,
-// where each data point set is an Array of {speed, payload} data points
-// each data point represents one engine rating
+// returns an Array of {oMechs, aData}, ordered by 'Mech max Tonnage,
+//   aData: an Array of {speed, payload, engineRating} data points,
+//         each data point represents one engine rating
+//   oMechs: an Object {type_name0:{variant_name:maxEngineIndex}, type_name1...},
+//           where `maxEngineIndex` is the index in aData of the data point for the max engine rating
+// 
 // the parameter `fPayload` shall be a function
 //     {mech:{maxTonnage, maxArmor}, engine:{rating, isXL}} |--> payload
 MechData.createDataPoints = function(p_aMechsByTonnage, p_isXL, p_fPayload)
@@ -148,7 +192,6 @@ MechData.createDataPoints = function(p_aMechsByTonnage, p_isXL, p_fPayload)
 
     var ret = new Array();
     
-    var kEngineList = 0;
     for(var kTonnage in p_aMechsByTonnage)
     {
         if(!p_aMechsByTonnage.hasOwnProperty(kTonnage))
@@ -157,31 +200,49 @@ MechData.createDataPoints = function(p_aMechsByTonnage, p_isXL, p_fPayload)
         }
 
         var oMechTypes = p_aMechsByTonnage[kTonnage];
+        var aEngineRatings = engines_by_mechMaxTonnage[kTonnage];
+
+        var currEntry = {oMechs: new Object(), aData: new Array()};
+        
+        // add variants with their max engine indices
+        for(var kMechType in oMechTypes)
+        {
+            var typeName = oMechTypes[kMechType].name;
+            var aVariants = oMechTypes[kMechType].aVariants;
+
+            currEntry.oMechs[typeName] = new Object();
+            for(var kVariant in aVariants)
+            {
+                var variant = aVariants[kVariant];
+                var indexOfMaxEngine = binaryIndexOf.call(aEngineRatings, variant.maxEngineRating);
+                currEntry.oMechs[typeName][kVariant] = indexOfMaxEngine;
+            }
+        }
+        
+        // get some mech type for max tonnage and max armor values
         var someMechType = getSomeElement(oMechTypes);
         
-        ret.push(new Array());
-
-        var aEngineRatings = engines_by_mechMaxTonnage[kEngineList];
-        for(var kEngine in aEngineRatings)
+        // add speed-payload data points
+        for(var iEngineRating = 0; iEngineRating < aEngineRatings.length; ++iEngineRating)
         {
-            if(!aEngineRatings.hasOwnProperty(kEngine))
-            {
-                continue;
-            }
-
-            var engineRating = aEngineRatings[kEngine];
+            var currEngineRating = aEngineRatings[iEngineRating];
             var params =
             {
                   mech:   {maxTonnage: someMechType.maxTonnage, maxArmor: someMechType.maxArmor}
-                , engine: {rating:engineRating, isXL:p_isXL}
+                , engine: {rating:currEngineRating, isXL:p_isXL}
             };
             var maxPayload = p_fPayload(params);
-            var maxSpeed = MechData.maxSpeed(someMechType.maxTonnage, engineRating);
+            var maxSpeed = MechData.maxSpeed(someMechType.maxTonnage, currEngineRating);
 
-            ret[ret.length-1].push({speed:maxSpeed, payload:maxPayload});
+            currEntry.aData.push
+                ({
+                      speed: maxSpeed
+                    , payload: maxPayload
+                    , engineRating: currEngineRating
+                });
         }
-
-        ++kEngineList;
+        
+        ret.push(currEntry);
     }
 
     return ret;
@@ -341,7 +402,7 @@ function SimpleGraph(elemid, options)
   this.gGrid = this.vis.append("g")
       .attr("id", "gGrid");
   
-  // add a clip rectangle for the data lines
+  // add a clip rectangle for the chart canvas 
   this.vis.append("defs").append("svg:clipPath")
     .attr("id", "chartContentClip")
     .append("svg:rect")
@@ -350,9 +411,15 @@ function SimpleGraph(elemid, options)
     .attr("width", this.size.width)
     .attr("height", this.size.height);
   
-  // add a group for the data lines
-  var gLines = this.vis.append("g")
+  var gChartCanvas = this.vis.append("g")
+    .attr("id", "gChartCanvas")
     .attr("clip-path", "url(#chartContentClip)");
+  
+  // add a group for the data lines
+  var gLines = gChartCanvas.append("g");
+  
+  var gLabels = gChartCanvas.append("g")
+    .attr("class", "label");
   
   //+ add data lines
       /*
@@ -368,13 +435,38 @@ function SimpleGraph(elemid, options)
       */
       for(var kLine in this.data)
       {
-          console.log(kLine+": "+getDistinctColor(kLine));
-          var lineData = this.data[kLine];
+          var lineData = this.data[kLine].aData;
+
+          var color = getDistinctColor(kLine);
+
           gLines.append("path")
             .attr("class", "line")
-            .attr("style", "stroke: "+getDistinctColor(kLine))
+            .attr("style", "stroke: "+color)
             .attr("id", "line"+kLine)
             .attr("d", this.lineGen(lineData));
+         
+          // add type labels
+          var xpos = this.x(lineData[0].speed);
+          var ypos = this.y(lineData[0].payload);
+          
+          var gLabel = gLabels.append("g")
+            .attr("transform", "translate("+xpos+","+ypos+")")
+            .attr("id", "typeLbl"+kLine)
+            .attr("style", "fill: "+color);
+          
+          var label = gLabel.append("text")
+            .attr("text-anchor", "end");
+          
+          var nType = 0;
+          for(var kType in this.data[kLine].oMechs)
+          {
+              label.append("tspan")
+                .attr("x", "0")
+                .attr("y", nType+"em")
+                .text(kType)
+              
+              ++nType;
+          }
       }
   //- data lines added
   
@@ -460,8 +552,14 @@ SimpleGraph.prototype.update = function() {
       
       for(var kLine in this.data)
       {
-          var lineData = this.data[kLine];
+          var lineData = this.data[kLine].aData;
           this.vis.select("#line"+kLine).attr("d", this.lineGen(lineData));
+
+          // add type labels
+          var xpos = this.x(lineData[0].speed);
+          var ypos = this.y(lineData[0].payload);
+          var label = this.vis.select("#typeLbl"+kLine)
+            .attr("transform", "translate("+xpos+","+ypos+")");
       }
   //- lines updated
 
