@@ -65,6 +65,54 @@ function nextIndex(arr, index)
 	}
 //- from https://gist.github.com/Wolfy87/5734530
 
+// Performs a binary search on haystack, returns an interval {beg, end}, where
+//     beg: index of biggest element smaller than needle
+//     end: index of smallest element bigger than needle
+// uses the result of fAccessor(aHaystack[key]) to compare against needle
+function intervalIn(aHaystack, needle, fAccessor)
+{
+    // binary search code from https://gist.github.com/Wolfy87/5734530
+    var minIndex = 0;
+    var maxIndex = aHaystack.length - 1;
+    var currentIndex;
+    var currentElement;
+        
+    while (minIndex <= maxIndex)
+    {
+        currentIndex = (minIndex + maxIndex) / 2 | 0;
+        currentElement = fAccessor(aHaystack[currentIndex]);
+ 
+        if (currentElement < needle)
+        {
+            var nextElement = currentIndex < aHaystack.length-1
+                      ? fAccessor(aHaystack[currentIndex+1]) : currentElement;
+            if(nextElement > needle)
+            {
+                return {beg: currentIndex, end: currentIndex+1};
+            }else
+            {
+                minIndex = currentIndex + 1;
+            }
+        }else if (currentElement > needle)
+        {
+            var prevElement = currentIndex > 0
+                      ? fAccessor(aHaystack[currentIndex-1]) : currentElement;
+            if(prevElement < needle)
+            {
+                return {beg: currentIndex-1, end: currentIndex};
+            }else
+            {
+                maxIndex = currentIndex - 1;
+            }
+        }else
+        {
+            return {beg: currentIndex, end: currentIndex};
+        }
+    }
+    
+    return {beg: -1, end: -1};
+}
+
 
 function getSomeElement(obj)
 {
@@ -316,9 +364,9 @@ function SimpleGraph(elemid, options)
   // adjust style according to options (e.g. add padding for title)
   this.padding = {
      "top":    this.options.title  ? 40 : 20,
-     "right":                 30,
+     "right":  this.options.ylabel ? 70 : 45,
      "bottom": this.options.xlabel ? 60 : 10,
-     "left":   this.options.ylabel ? 70 : 45
+     "left":   45,
   };
   
   // calculate chart canvas size (excluding title and axis labels)
@@ -418,7 +466,7 @@ function SimpleGraph(elemid, options)
   // add a group for the data lines
   var gLines = gChartCanvas.append("g");
   
-  var gLabels = gChartCanvas.append("g")
+  var gLabels = this.vis.append("g")
     .attr("class", "label");
   
   //+ add data lines
@@ -497,7 +545,7 @@ function SimpleGraph(elemid, options)
         .attr("class", "axis")
         .text(this.options.ylabel)
         .style("text-anchor","middle")
-        .attr("transform","translate(" + -40 + " " + this.size.height/2+") rotate(-90)");
+	    .attr("transform","translate(" + (this.size.width+50) + " " + this.size.height/2+") rotate(-90)");
   }
 
   d3.select(this.div_chart)
@@ -558,8 +606,46 @@ SimpleGraph.prototype.update = function() {
           // add type labels
           var xpos = this.x(lineData[0].speed);
           var ypos = this.y(lineData[0].payload);
-          var label = this.vis.select("#typeLbl"+kLine)
-            .attr("transform", "translate("+xpos+","+ypos+")");
+          var invisible = false;
+          if(xpos < 0)
+          {
+              var interval = intervalIn(lineData, 0, function(d){return self.x(d.speed)});
+              if(interval.beg != -1)
+              {
+                  if(   interval.beg != interval.end
+                     && lineData[interval.beg].payload != lineData[interval.end].payload)
+                  {
+                      var beg = {  x: this.x(lineData[interval.beg].speed)
+                                 , y: this.y(lineData[interval.beg].payload) };
+                      var end = {  x: this.x(lineData[interval.end].speed)
+                                 , y: this.y(lineData[interval.end].payload) };
+                      
+                      var gradient = (end.y - beg.y) / (end.x - beg.x);
+                      
+                      var interpolation = gradient * (0 - beg.x);
+                      interpolation += beg.y;
+
+                      ypos = interpolation;
+                  }else
+                  {
+                      ypos = this.y(lineData[interval.beg].payload);
+                  }
+              }else
+              {
+                  invisible = true;
+              }
+          }
+          
+          if(!invisible)
+          {
+              this.vis.select("#typeLbl"+kLine)
+                .attr("transform", "translate("+Math.max(0,xpos)+","+ypos+")")
+                .select("text").attr("style", "display: block");
+          }else
+          {
+              this.vis.select("#typeLbl"+kLine)
+                .select("text").attr("style", "display: none");
+          }
       }
   //- lines updated
 
@@ -753,9 +839,9 @@ SimpleGraph.prototype.redraw = function() {
 
     gye.append("text")
         .attr("class", "axis")
-        .attr("x", -3)
+        .attr("x", self.size.width + 3)
         .attr("dy", ".35em")
-        .attr("text-anchor", "end")
+        .attr("text-anchor", "begin")
         .text(fy)
         .style("cursor", "ns-resize")
         .on("mouseover", function(d) { d3.select(this).style("font-weight", "bold");})
