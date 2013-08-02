@@ -316,9 +316,9 @@ function SimpleGraph(elemid, options)
   // adjust style according to options (e.g. add padding for title)
   this.padding = {
      "top":    this.options.title  ? 40 : 20,
-     "right":                 30,
+     "right":  this.options.ylabel ? 70 : 45,
      "bottom": this.options.xlabel ? 60 : 10,
-     "left":   this.options.ylabel ? 70 : 45
+     "left":   30,
   };
   
   // calculate chart canvas size (excluding title and axis labels)
@@ -497,7 +497,7 @@ function SimpleGraph(elemid, options)
         .attr("class", "axis")
         .text(this.options.ylabel)
         .style("text-anchor","middle")
-        .attr("transform","translate(" + -40 + " " + this.size.height/2+") rotate(-90)");
+	    .attr("transform","translate(" + (this.size.width+50) + " " + this.size.height/2+") rotate(-90)");
   }
 
   d3.select(this.div_chart)
@@ -753,9 +753,9 @@ SimpleGraph.prototype.redraw = function() {
 
     gye.append("text")
         .attr("class", "axis")
-        .attr("x", -3)
+        .attr("x", self.size.width + 3)
         .attr("dy", ".35em")
-        .attr("text-anchor", "end")
+        .attr("text-anchor", "begin")
         .text(fy)
         .style("cursor", "ns-resize")
         .on("mouseover", function(d) { d3.select(this).style("font-weight", "bold");})
