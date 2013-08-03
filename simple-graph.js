@@ -65,6 +65,54 @@ function nextIndex(arr, index)
 	}
 //- from https://gist.github.com/Wolfy87/5734530
 
+// Performs a binary search on haystack, returns an interval {beg, end}, where
+//     beg: index of biggest element smaller than needle
+//     end: index of smallest element bigger than needle
+// uses the result of fAccessor(aHaystack[key]) to compare against needle
+function intervalIn(aHaystack, needle, fAccessor)
+{
+    // binary search code from https://gist.github.com/Wolfy87/5734530
+    var minIndex = 0;
+    var maxIndex = aHaystack.length - 1;
+    var currentIndex;
+    var currentElement;
+        
+    while (minIndex <= maxIndex)
+    {
+        currentIndex = (minIndex + maxIndex) / 2 | 0;
+        currentElement = fAccessor(aHaystack[currentIndex]);
+ 
+        if (currentElement < needle)
+        {
+            var nextElement = currentIndex < aHaystack.length-1
+                      ? fAccessor(aHaystack[currentIndex+1]) : currentElement;
+            if(nextElement > needle)
+            {
+                return {beg: currentIndex, end: currentIndex+1};
+            }else
+            {
+                minIndex = currentIndex + 1;
+            }
+        }else if (currentElement > needle)
+        {
+            var prevElement = currentIndex > 0
+                      ? fAccessor(aHaystack[currentIndex-1]) : currentElement;
+            if(prevElement < needle)
+            {
+                return {beg: currentIndex-1, end: currentIndex};
+            }else
+            {
+                maxIndex = currentIndex - 1;
+            }
+        }else
+        {
+            return {beg: currentIndex, end: currentIndex};
+        }
+    }
+    
+    return {beg: -1, end: -1};
+}
+
 
 function getSomeElement(obj)
 {
@@ -316,9 +364,9 @@ function SimpleGraph(elemid, options)
   // adjust style according to options (e.g. add padding for title)
   this.padding = {
      "top":    this.options.title  ? 40 : 20,
-     "right":                 30,
+     "right":  this.options.ylabel ? 70 : 45,
      "bottom": this.options.xlabel ? 60 : 10,
-     "left":   this.options.ylabel ? 70 : 45
+     "left":   45,
   };
   
   // calculate chart canvas size (excluding title and axis labels)
@@ -390,14 +438,7 @@ function SimpleGraph(elemid, options)
       .attr("id", "chartBg")
       .attr("width", this.size.width)
       .attr("height", this.size.height)
-      .style("fill", "#EEEEEE")
-      .attr("pointer-events", "all")
-      .on("mousedown.drag", self.plot_drag())
-      .on("touchstart.drag", self.plot_drag());
-  
-  // add event handler for zooming
-  var zoom = d3.behavior.zoom().x(this.x).y(this.y).on("zoom", this.redraw());
-  this.chartBg.call(zoom);
+      .style("fill", "#EEEEEE");
 
   this.gGrid = this.vis.append("g")
       .attr("id", "gGrid");
@@ -418,7 +459,7 @@ function SimpleGraph(elemid, options)
   // add a group for the data lines
   var gLines = gChartCanvas.append("g");
   
-  var gLabels = gChartCanvas.append("g")
+  var gLabels = this.vis.append("g")
     .attr("class", "label");
   
   //+ add data lines
@@ -469,6 +510,19 @@ function SimpleGraph(elemid, options)
           }
       }
   //- data lines added
+
+  this.rEventHook = this.vis.append("rect")
+    .attr("id", "rEventHook")
+    .attr("style", "visibility: hidden")
+    .attr("width", this.size.width)
+    .attr("height", this.size.height)
+    .attr("pointer-events", "all")
+    .on("mousedown.drag", self.plot_drag())
+    .on("touchstart.drag", self.plot_drag());
+  
+  // add event handler for zooming
+  var zoom = d3.behavior.zoom().x(this.x).y(this.y).on("zoom", this.redraw());
+  this.rEventHook.call(zoom);
   
   // add Chart Title
   if (this.options.title) {
@@ -497,7 +551,7 @@ function SimpleGraph(elemid, options)
         .attr("class", "axis")
         .text(this.options.ylabel)
         .style("text-anchor","middle")
-        .attr("transform","translate(" + -40 + " " + this.size.height/2+") rotate(-90)");
+	    .attr("transform","translate(" + (this.size.width+50) + " " + this.size.height/2+") rotate(-90)");
   }
 
   d3.select(this.div_chart)
@@ -518,38 +572,12 @@ SimpleGraph.prototype.plot_drag = function() {
   return function() {
     registerKeyboardHandler(self.keydown());
     d3.select('body').style("cursor", "move");
-    if (d3.event.altKey) {
-      var p = d3.svg.mouse(self.vis.node());
-      var newpoint = {};
-      newpoint.x = self.x.invert(Math.max(0, Math.min(self.size.width,  p[0])));
-      newpoint.y = self.y.invert(Math.max(0, Math.min(self.size.height, p[1])));
-      self.points.push(newpoint);
-      self.points.sort(function(a, b) {
-        if (a.x < b.x) { return -1 };
-        if (a.x > b.x) { return  1 };
-        return 0
-      });
-      self.points2.push(newpoint);
-      self.points2.sort(function(a, b) {
-        if (a.x < b.x) { return -1 };
-        if (a.x > b.x) { return  1 };
-        return 0
-      });
-      self.selected = newpoint;
-      self.update();
-      d3.event.preventDefault();
-      d3.event.stopPropagation();
-    }    
   }
 };
 
 SimpleGraph.prototype.update = function() {
   var self = this;
   //+ update lines
-      //var lines = this.vis.select("path").attr("d", this.lineGen(this.points));
-      //this.vis.select("#line1").attr("d", this.lineGen(this.points));
-      //this.vis.select("#line2").attr("d", this.lineGen(this.points2));
-      
       for(var kLine in this.data)
       {
           var lineData = this.data[kLine].aData;
@@ -558,48 +586,54 @@ SimpleGraph.prototype.update = function() {
           // add type labels
           var xpos = this.x(lineData[0].speed);
           var ypos = this.y(lineData[0].payload);
-          var label = this.vis.select("#typeLbl"+kLine)
-            .attr("transform", "translate("+xpos+","+ypos+")");
+          var invisible = false;
+          if(xpos < 0)
+          {
+              var interval = intervalIn(lineData, 0, function(d){return self.x(d.speed)});
+              if(interval.beg != -1)
+              {
+                  if(   interval.beg != interval.end
+                     && lineData[interval.beg].payload != lineData[interval.end].payload)
+                  {
+                      var beg = {  x: this.x(lineData[interval.beg].speed)
+                                 , y: this.y(lineData[interval.beg].payload) };
+                      var end = {  x: this.x(lineData[interval.end].speed)
+                                 , y: this.y(lineData[interval.end].payload) };
+                      
+                      var gradient = (end.y - beg.y) / (end.x - beg.x);
+                      
+                      var interpolation = gradient * (0 - beg.x);
+                      interpolation += beg.y;
+
+                      ypos = interpolation;
+                  }else
+                  {
+                      ypos = this.y(lineData[interval.beg].payload);
+                  }
+              }else
+              {
+                  invisible = true;
+              }
+          }
+          
+          if(!invisible)
+          {
+              this.vis.select("#typeLbl"+kLine)
+                .attr("transform", "translate("+Math.max(0,xpos)+","+ypos+")")
+                .select("text").attr("style", "display: block");
+          }else
+          {
+              this.vis.select("#typeLbl"+kLine)
+                .select("text").attr("style", "display: none");
+          }
       }
   //- lines updated
-
-  /*
-  var circle = this.vis.select("svg").selectAll("circle")
-      .data(this.points, function(d) { return d; });
-
-  circle.enter().append("circle")
-      .attr("class", function(d) { return d === self.selected ? "selected" : null; })
-      .attr("cx",    function(d) { return self.x(d.x); })
-      .attr("cy",    function(d) { return self.y(d.y); })
-      .attr("r", 10.0)
-      .style("cursor", "ns-resize")
-      .on("mousedown.drag",  self.datapoint_drag())
-      .on("touchstart.drag", self.datapoint_drag());
-
-  circle
-      .attr("class", function(d) { return d === self.selected ? "selected" : null; })
-      .attr("cx",    function(d) { 
-        return self.x(d.x); })
-      .attr("cy",    function(d) { return self.y(d.y); });
-
-  circle.exit().remove();
-  */
+  
   if (d3.event && d3.event.keyCode) {
     d3.event.preventDefault();
     d3.event.stopPropagation();
   }
 }
-
-SimpleGraph.prototype.datapoint_drag = function() {
-  var self = this;
-  return function(d) {
-    registerKeyboardHandler(self.keydown());
-    document.onselectstart = function() { return false; };
-    self.selected = self.dragged = d;
-    self.update();
-    
-  }
-};
 
 SimpleGraph.prototype.mousemove = function() {
   var self = this;
@@ -668,21 +702,26 @@ SimpleGraph.prototype.mouseup = function() {
       self.dragged = null 
     }
   }
-}
+};
+
+SimpleGraph.prototype.resetView = function()
+{
+    this.x.domain([this.options.xmin, this.options.xmax]);
+    this.y.domain([this.options.ymax, this.options.ymin]);
+    this.redraw()();
+};
 
 SimpleGraph.prototype.keydown = function() {
   var self = this;
-  return function() {
-    if (!self.selected) return;
-    switch (d3.event.keyCode) {
-      case 8: // backspace
-      case 46: { // delete
-        var i = self.points.indexOf(self.selected);
-        self.points.splice(i, 1);
-        self.selected = self.points.length ? self.points[i > 0 ? i - 1 : 0] : null;
-        self.update();
+
+  return function()
+  {
+    console.log(d3.event);
+    switch (d3.event.keyCode)
+    {
+      case 82: // r
+        self.resetView();
         break;
-      }
     }
   }
 };
@@ -753,9 +792,9 @@ SimpleGraph.prototype.redraw = function() {
 
     gye.append("text")
         .attr("class", "axis")
-        .attr("x", -3)
+        .attr("x", self.size.width + 3)
         .attr("dy", ".35em")
-        .attr("text-anchor", "end")
+        .attr("text-anchor", "begin")
         .text(fy)
         .style("cursor", "ns-resize")
         .on("mouseover", function(d) { d3.select(this).style("font-weight", "bold");})
@@ -766,7 +805,7 @@ SimpleGraph.prototype.redraw = function() {
     gy.exit().remove();
     
     
-    self.chartBg.call(d3.behavior.zoom().x(self.x).y(self.y).on("zoom", self.redraw()));
+    self.rEventHook.call(d3.behavior.zoom().x(self.x).y(self.y).on("zoom", self.redraw()));
     self.update();    
   }  
 }
