@@ -438,14 +438,7 @@ function SimpleGraph(elemid, options)
       .attr("id", "chartBg")
       .attr("width", this.size.width)
       .attr("height", this.size.height)
-      .style("fill", "#EEEEEE")
-      .attr("pointer-events", "all")
-      .on("mousedown.drag", self.plot_drag())
-      .on("touchstart.drag", self.plot_drag());
-  
-  // add event handler for zooming
-  var zoom = d3.behavior.zoom().x(this.x).y(this.y).on("zoom", this.redraw());
-  this.chartBg.call(zoom);
+      .style("fill", "#EEEEEE");
 
   this.gGrid = this.vis.append("g")
       .attr("id", "gGrid");
@@ -517,6 +510,19 @@ function SimpleGraph(elemid, options)
           }
       }
   //- data lines added
+
+  this.rEventHook = this.vis.append("rect")
+    .attr("id", "rEventHook")
+    .attr("style", "visibility: hidden")
+    .attr("width", this.size.width)
+    .attr("height", this.size.height)
+    .attr("pointer-events", "all")
+    .on("mousedown.drag", self.plot_drag())
+    .on("touchstart.drag", self.plot_drag());
+  
+  // add event handler for zooming
+  var zoom = d3.behavior.zoom().x(this.x).y(this.y).on("zoom", this.redraw());
+  this.rEventHook.call(zoom);
   
   // add Chart Title
   if (this.options.title) {
@@ -566,38 +572,12 @@ SimpleGraph.prototype.plot_drag = function() {
   return function() {
     registerKeyboardHandler(self.keydown());
     d3.select('body').style("cursor", "move");
-    if (d3.event.altKey) {
-      var p = d3.svg.mouse(self.vis.node());
-      var newpoint = {};
-      newpoint.x = self.x.invert(Math.max(0, Math.min(self.size.width,  p[0])));
-      newpoint.y = self.y.invert(Math.max(0, Math.min(self.size.height, p[1])));
-      self.points.push(newpoint);
-      self.points.sort(function(a, b) {
-        if (a.x < b.x) { return -1 };
-        if (a.x > b.x) { return  1 };
-        return 0
-      });
-      self.points2.push(newpoint);
-      self.points2.sort(function(a, b) {
-        if (a.x < b.x) { return -1 };
-        if (a.x > b.x) { return  1 };
-        return 0
-      });
-      self.selected = newpoint;
-      self.update();
-      d3.event.preventDefault();
-      d3.event.stopPropagation();
-    }    
   }
 };
 
 SimpleGraph.prototype.update = function() {
   var self = this;
   //+ update lines
-      //var lines = this.vis.select("path").attr("d", this.lineGen(this.points));
-      //this.vis.select("#line1").attr("d", this.lineGen(this.points));
-      //this.vis.select("#line2").attr("d", this.lineGen(this.points2));
-      
       for(var kLine in this.data)
       {
           var lineData = this.data[kLine].aData;
@@ -648,44 +628,12 @@ SimpleGraph.prototype.update = function() {
           }
       }
   //- lines updated
-
-  /*
-  var circle = this.vis.select("svg").selectAll("circle")
-      .data(this.points, function(d) { return d; });
-
-  circle.enter().append("circle")
-      .attr("class", function(d) { return d === self.selected ? "selected" : null; })
-      .attr("cx",    function(d) { return self.x(d.x); })
-      .attr("cy",    function(d) { return self.y(d.y); })
-      .attr("r", 10.0)
-      .style("cursor", "ns-resize")
-      .on("mousedown.drag",  self.datapoint_drag())
-      .on("touchstart.drag", self.datapoint_drag());
-
-  circle
-      .attr("class", function(d) { return d === self.selected ? "selected" : null; })
-      .attr("cx",    function(d) { 
-        return self.x(d.x); })
-      .attr("cy",    function(d) { return self.y(d.y); });
-
-  circle.exit().remove();
-  */
+  
   if (d3.event && d3.event.keyCode) {
     d3.event.preventDefault();
     d3.event.stopPropagation();
   }
 }
-
-SimpleGraph.prototype.datapoint_drag = function() {
-  var self = this;
-  return function(d) {
-    registerKeyboardHandler(self.keydown());
-    document.onselectstart = function() { return false; };
-    self.selected = self.dragged = d;
-    self.update();
-    
-  }
-};
 
 SimpleGraph.prototype.mousemove = function() {
   var self = this;
@@ -754,21 +702,26 @@ SimpleGraph.prototype.mouseup = function() {
       self.dragged = null 
     }
   }
-}
+};
+
+SimpleGraph.prototype.resetView = function()
+{
+    this.x.domain([this.options.xmin, this.options.xmax]);
+    this.y.domain([this.options.ymax, this.options.ymin]);
+    this.redraw()();
+};
 
 SimpleGraph.prototype.keydown = function() {
   var self = this;
-  return function() {
-    if (!self.selected) return;
-    switch (d3.event.keyCode) {
-      case 8: // backspace
-      case 46: { // delete
-        var i = self.points.indexOf(self.selected);
-        self.points.splice(i, 1);
-        self.selected = self.points.length ? self.points[i > 0 ? i - 1 : 0] : null;
-        self.update();
+
+  return function()
+  {
+    console.log(d3.event);
+    switch (d3.event.keyCode)
+    {
+      case 82: // r
+        self.resetView();
         break;
-      }
     }
   }
 };
@@ -852,7 +805,7 @@ SimpleGraph.prototype.redraw = function() {
     gy.exit().remove();
     
     
-    self.chartBg.call(d3.behavior.zoom().x(self.x).y(self.y).on("zoom", self.redraw()));
+    self.rEventHook.call(d3.behavior.zoom().x(self.x).y(self.y).on("zoom", self.redraw()));
     self.update();    
   }  
 }
