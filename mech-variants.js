@@ -84,6 +84,7 @@ var oMechsByType =
 		oVariants:
 		{
 			  "CPLT-A1":{minEngineRating:130, maxEngineRating:315}
+			, "CPLT-A1(C)":{minEngineRating:130, maxEngineRating:315}
 			, "CPLT-C1":{minEngineRating:130, maxEngineRating:315}
 			, "CPLT-C4":{minEngineRating:130, maxEngineRating:315}
 			, "CPLT-K2":{minEngineRating:130, maxEngineRating:315}
@@ -165,6 +166,15 @@ var oMechsByType =
 			, "JR7-F":{minEngineRating:70, maxEngineRating:300}
 			, "JR7-F(C)":{minEngineRating:70, maxEngineRating:300}
 			, "JR7-K":{minEngineRating:70, maxEngineRating:300}
+		}
+	}
+	, "KTO":
+	{
+		maxTonnage:55,
+		maxArmor:370,
+		oVariants:
+		{
+			  "KTO-GB":{minEngineRating:110, maxEngineRating:290}
 		}
 	}
 	, "QKD":
