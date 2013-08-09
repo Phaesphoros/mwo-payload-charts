@@ -113,6 +113,50 @@ function intervalIn(aHaystack, needle, fAccessor)
     return {beg: -1, end: -1};
 }
 
+    function intervalIn_f(aHaystack, needle, fAccessor, fComp)
+    {
+        // binary search code from https://gist.github.com/Wolfy87/5734530
+        var minIndex = 0;
+        var maxIndex = aHaystack.length - 1;
+        var currentIndex;
+        var currentElement;
+            
+        while (minIndex <= maxIndex)
+        {
+            currentIndex = (minIndex + maxIndex) / 2 | 0;
+            currentElement = fAccessor(aHaystack[currentIndex]);
+     
+            if (fComp(currentElement, needle))
+            {
+                var nextElement = currentIndex < aHaystack.length-1
+                          ? fAccessor(aHaystack[currentIndex+1]) : currentElement;
+                if(fComp(needle, nextElement))
+                {
+                    return {beg: currentIndex, end: currentIndex+1};
+                }else
+                {
+                    minIndex = currentIndex + 1;
+                }
+            }else if (fComp(needle, currentElement))
+            {
+                var prevElement = currentIndex > 0
+                          ? fAccessor(aHaystack[currentIndex-1]) : currentElement;
+                if(fComp(prevElement, needle))
+                {
+                    return {beg: currentIndex-1, end: currentIndex};
+                }else
+                {
+                    maxIndex = currentIndex - 1;
+                }
+            }else
+            {
+                return {beg: currentIndex, end: currentIndex};
+            }
+        }
+        
+        return {beg: -1, end: -1};
+    }
+
 
 function getSomeElement(obj)
 {
@@ -696,6 +740,39 @@ SimpleGraph.prototype.update = function() {
                   }
               }else
               {
+                  invisible = true;
+              }
+          }
+          if(ypos < 0 && !invisible)
+          {
+              ypos = 0;
+
+              var interval = intervalIn_f(lineData, self.y.domain()[0], function(d){return d.payload;},
+                                          function(a,b){return a>b;});
+              if(interval.beg != -1)
+              {
+                  if(   interval.beg != interval.end
+                     && lineData[interval.beg].payload != lineData[interval.end].payload)
+                  {
+                      var beg = {  x: this.x(lineData[interval.beg].speed)
+                                 , y: this.y(lineData[interval.beg].payload) };
+                      var end = {  x: this.x(lineData[interval.end].speed)
+                                 , y: this.y(lineData[interval.end].payload) };
+                      
+                      var gradient = (end.y - beg.y) / (end.x - beg.x);
+                      
+                      var interpolation = (0 - beg.y) / gradient;
+                      interpolation += beg.x;
+                      console.log(beg.y +":"+ self.size.height);
+
+                      xpos = interpolation;
+                  }else
+                  {
+                      xpos = this.x(lineData[interval.beg].speed);
+                  }
+              }else
+              {
+                  console.log("invs");
                   invisible = true;
               }
           }
