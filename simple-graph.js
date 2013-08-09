@@ -256,12 +256,12 @@ MechData.createDataPoints = function(p_aMechsByTonnage, p_isXL, p_fPayload)
         for(var kMechType in oMechTypes)
         {
             var typeName = oMechTypes[kMechType].name;
-            var aVariants = oMechTypes[kMechType].aVariants;
+            var oVariants = oMechTypes[kMechType].oVariants;
 
             currEntry.oMechs[typeName] = new Object();
-            for(var kVariant in aVariants)
+            for(var kVariant in oVariants)
             {
-                var variant = aVariants[kVariant];
+                var variant = oVariants[kVariant];
                 var indexOfMaxEngine = binaryIndexOf.call(aEngineRatings, variant.maxEngineRating);
                 currEntry.oMechs[typeName][kVariant] = indexOfMaxEngine;
             }
@@ -509,7 +509,33 @@ function SimpleGraph(elemid, options)
           }
       }
   //- data lines added
+  
+  //+ add a legend
+      var legendWidth = 200;
+      var legendHeight = 170;
 
+      this.rLegend = this.vis.append("g")
+        .attr("id", "gLegend")
+        .attr("transform", "translate("+(this.size.width-legendWidth)+",0)");
+      
+      this.rLegend
+        .append("rect")
+        .attr("width", legendWidth)
+        .attr("height", legendHeight)
+        .style("fill", "white")
+        .style("stroke", "none");
+      
+      this.tLegend = this.rLegend
+        .append("svg:foreignObject")
+        .attr("width", legendWidth)
+        .attr("height", legendHeight)
+        .append("xhtml:div")
+        .append("xhtml:table").attr("class", "tbLegend");
+
+      this.setLegend(null, null, 0);
+  //- legend added
+  
+  // add an invisible rect overlay for custom event handling
   this.rEventHook = this.vis.append("rect")
     .attr("id", "rEventHook")
     .attr("style", "visibility: hidden")
@@ -565,6 +591,55 @@ function SimpleGraph(elemid, options)
 //
 // SimpleGraph methods
 //
+
+SimpleGraph.prototype.setLegend = function(oMechs, oDataPoint, dataIndex)
+{
+    if(null == oMechs)
+    {
+        return;
+    }
+
+    this.tLegend.selectAll("tr").remove();
+    
+    var roundedSpeed = Math.round(oDataPoint.speed*10)/10.0;
+
+    {var tr = this.tLegend.append("xhtml:tr");
+        tr.append("xhtml:td").classed("descr", true).text("engine:");
+        tr.append("xhtml:td").classed("value", true).text(oDataPoint.engineRating);
+    }
+    {var tr = this.tLegend.append("xhtml:tr");
+        tr.append("xhtml:td").classed("descr", true).text("speed:");
+        tr.append("xhtml:td").classed("value", true).text(roundedSpeed);
+    }
+    {var tr = this.tLegend.append("xhtml:tr");
+        tr.append("xhtml:td").classed("descr", true).text("payload:");
+        tr.append("xhtml:td").classed("value", true).text(oDataPoint.payload);
+    }
+    var variants;
+    {var tr = this.tLegend.append("xhtml:tr");
+        tr.append("xhtml:td").classed("descr", true).text("'Mechs:");
+        variants = tr.append("xhtml:td").classed("value", true).append("xhtml:table");
+    }
+
+    for(var kMech in oMechs)
+    {
+        var mech = oMechs[kMech];
+
+        var tr = variants.append("xhtml:tr");
+          tr.append("xhtml:td").text(kMech);
+
+        var text = "";
+        for(var kVariant in mech)
+        {
+            if(mech[kVariant] >= dataIndex)
+            {
+                text += kVariant.substr(kMech.length+1)+"; ";
+            }
+        }
+
+        tr.append("xhtml:td").text(text);
+    }
+};
 
 SimpleGraph.prototype.plot_drag = function() {
   var self = this;
@@ -646,6 +721,14 @@ SimpleGraph.prototype.update = function() {
             .attr("r", 4);
       }
   //- lines updated
+
+  // update legend
+  if(null != self.nearestDataPoint && null != self.nearestDataPoint.pointIndex)
+  {
+      var line = self.data[self.nearestDataPoint.lineIndex];
+      var index = self.nearestDataPoint.pointIndex;
+      self.setLegend(line.oMechs, line.aData[index], index);
+  }
   
   if (d3.event && d3.event.keyCode) {
     d3.event.preventDefault();
