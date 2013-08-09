@@ -256,12 +256,12 @@ MechData.createDataPoints = function(p_aMechsByTonnage, p_isXL, p_fPayload)
         for(var kMechType in oMechTypes)
         {
             var typeName = oMechTypes[kMechType].name;
-            var aVariants = oMechTypes[kMechType].aVariants;
+            var oVariants = oMechTypes[kMechType].oVariants;
 
             currEntry.oMechs[typeName] = new Object();
-            for(var kVariant in aVariants)
+            for(var kVariant in oVariants)
             {
-                var variant = aVariants[kVariant];
+                var variant = oVariants[kVariant];
                 var indexOfMaxEngine = binaryIndexOf.call(aEngineRatings, variant.maxEngineRating);
                 currEntry.oMechs[typeName][kVariant] = indexOfMaxEngine;
             }
@@ -463,28 +463,27 @@ function SimpleGraph(elemid, options)
     .attr("class", "label");
   
   //+ add data lines
-      /*
-      gLines.append("path")
-        .attr("class", "line line1")
-        .attr("id", "line1")
-        .attr("d", this.lineGen(this.points));
-      
-      gLines.append("path")
-        .attr("class", "line line2")
-        .attr("id", "line2")
-        .attr("d", this.lineGen(this.points2));
-      */
       for(var kLine in this.data)
       {
           var lineData = this.data[kLine].aData;
 
           var color = getDistinctColor(kLine);
 
-          gLines.append("path")
+          var gLine = gLines.append("g")
+            .attr("id", "gLine"+kLine);
+
+          gLine.append("path")
             .attr("class", "line")
             .attr("style", "stroke: "+color)
-            .attr("id", "line"+kLine)
             .attr("d", this.lineGen(lineData));
+
+          var symbols = gLine.selectAll("circle")
+            .data(lineData, function(d){return d;});
+          symbols.enter().append("circle")
+            .attr("cx", function(d){return self.x(d.speed);})
+            .attr("cy", function(d){return self.y(d.payload);})
+            .attr("r", 2.0)
+            .attr("style", "fill: "+color);
          
           // add type labels
           var xpos = this.x(lineData[0].speed);
@@ -510,7 +509,33 @@ function SimpleGraph(elemid, options)
           }
       }
   //- data lines added
+  
+  //+ add a legend
+      var legendWidth = 200;
+      var legendHeight = 170;
 
+      this.rLegend = this.vis.append("g")
+        .attr("id", "gLegend")
+        .attr("transform", "translate("+(this.size.width-legendWidth)+",0)");
+      
+      this.rLegend
+        .append("rect")
+        .attr("width", legendWidth)
+        .attr("height", legendHeight)
+        .style("fill", "white")
+        .style("stroke", "none");
+      
+      this.tLegend = this.rLegend
+        .append("svg:foreignObject")
+        .attr("width", legendWidth)
+        .attr("height", legendHeight)
+        .append("xhtml:div")
+        .append("xhtml:table").attr("class", "tbLegend");
+
+      this.setLegend(null, null, 0);
+  //- legend added
+  
+  // add an invisible rect overlay for custom event handling
   this.rEventHook = this.vis.append("rect")
     .attr("id", "rEventHook")
     .attr("style", "visibility: hidden")
@@ -551,7 +576,7 @@ function SimpleGraph(elemid, options)
         .attr("class", "axis")
         .text(this.options.ylabel)
         .style("text-anchor","middle")
-	    .attr("transform","translate(" + (this.size.width+50) + " " + this.size.height/2+") rotate(-90)");
+        .attr("transform","translate(" + (this.size.width+50) + " " + this.size.height/2+") rotate(-90)");
   }
 
   d3.select(this.div_chart)
@@ -567,6 +592,55 @@ function SimpleGraph(elemid, options)
 // SimpleGraph methods
 //
 
+SimpleGraph.prototype.setLegend = function(oMechs, oDataPoint, dataIndex)
+{
+    if(null == oMechs)
+    {
+        return;
+    }
+
+    this.tLegend.selectAll("tr").remove();
+    
+    var roundedSpeed = Math.round(oDataPoint.speed*10)/10.0;
+
+    {var tr = this.tLegend.append("xhtml:tr");
+        tr.append("xhtml:td").classed("descr", true).text("engine:");
+        tr.append("xhtml:td").classed("value", true).text(oDataPoint.engineRating);
+    }
+    {var tr = this.tLegend.append("xhtml:tr");
+        tr.append("xhtml:td").classed("descr", true).text("speed:");
+        tr.append("xhtml:td").classed("value", true).text(roundedSpeed);
+    }
+    {var tr = this.tLegend.append("xhtml:tr");
+        tr.append("xhtml:td").classed("descr", true).text("payload:");
+        tr.append("xhtml:td").classed("value", true).text(oDataPoint.payload);
+    }
+    var variants;
+    {var tr = this.tLegend.append("xhtml:tr");
+        tr.append("xhtml:td").classed("descr", true).text("'Mechs:");
+        variants = tr.append("xhtml:td").classed("value", true).append("xhtml:table");
+    }
+
+    for(var kMech in oMechs)
+    {
+        var mech = oMechs[kMech];
+
+        var tr = variants.append("xhtml:tr");
+          tr.append("xhtml:td").text(kMech);
+
+        var text = "";
+        for(var kVariant in mech)
+        {
+            if(mech[kVariant] >= dataIndex)
+            {
+                text += kVariant.substr(kMech.length+1)+"; ";
+            }
+        }
+
+        tr.append("xhtml:td").text(text);
+    }
+};
+
 SimpleGraph.prototype.plot_drag = function() {
   var self = this;
   return function() {
@@ -581,9 +655,19 @@ SimpleGraph.prototype.update = function() {
       for(var kLine in this.data)
       {
           var lineData = this.data[kLine].aData;
-          this.vis.select("#line"+kLine).attr("d", this.lineGen(lineData));
+          var gLine = this.vis.select("#gLine"+kLine);
+          
+          gLine.select("path").attr("d", this.lineGen(lineData));
 
-          // add type labels
+          // adjust symbols
+          var symbols = gLine
+            .selectAll("circle")
+            .data(lineData)
+            .attr("cx", function(d){return self.x(d.speed);})
+            .attr("cy", function(d){return self.y(d.payload);})
+            .attr("r", 2);
+            
+          // adjust type labels
           var xpos = this.x(lineData[0].speed);
           var ypos = this.y(lineData[0].payload);
           var invisible = false;
@@ -627,7 +711,24 @@ SimpleGraph.prototype.update = function() {
                 .select("text").attr("style", "display: none");
           }
       }
+      if(null != self.nearestDataPoint && null != self.nearestDataPoint.pointIndex)
+      {
+          var gLine = this.vis.select("#gLine"+self.nearestDataPoint.lineIndex);
+
+          var symbols = gLine
+            .selectAll("circle");
+          d3.select(symbols[0][self.nearestDataPoint.pointIndex])
+            .attr("r", 4);
+      }
   //- lines updated
+
+  // update legend
+  if(null != self.nearestDataPoint && null != self.nearestDataPoint.pointIndex)
+  {
+      var line = self.data[self.nearestDataPoint.lineIndex];
+      var index = self.nearestDataPoint.pointIndex;
+      self.setLegend(line.oMechs, line.aData[index], index);
+  }
   
   if (d3.event && d3.event.keyCode) {
     d3.event.preventDefault();
@@ -635,16 +736,20 @@ SimpleGraph.prototype.update = function() {
   }
 }
 
-SimpleGraph.prototype.mousemove = function() {
+SimpleGraph.prototype.mousemove = function()
+{
   var self = this;
-  return function() {
+
+  return function()
+  {
     var p = d3.svg.mouse(self.vis[0][0]),
         t = d3.event.changedTouches;
-    
+
     if (self.dragged) {
       self.dragged.y = self.y.invert(Math.max(0, Math.min(self.size.height, p[1])));
       self.update();
     };
+
     if (!isNaN(self.downx)) {
       d3.select('body').style("cursor", "ew-resize");
       var rupx = self.x.invert(p[0]),
@@ -677,6 +782,55 @@ SimpleGraph.prototype.mousemove = function() {
       d3.event.preventDefault();
       d3.event.stopPropagation();
     }
+
+    //+ add tooltip
+        var pointed = {x: self.x.invert(p[0]), y: self.y.invert(p[1])};
+        self.nearestDataPoint = {lineIndex: null, pointIndex: null, dist: Infinity};
+
+        for(var kLine in self.data)
+        {
+            var lineData = self.data[kLine].aData;
+
+            var interval;
+            if(lineData[0].speed > pointed.x)
+            {
+                interval = {beg: 0, end: 0};
+            }else if(lineData[lineData.length-1].speed < pointed.x)
+            {
+                interval = {beg: lineData.length-1, end: lineData.length-1};
+            }else
+            {
+                interval = intervalIn(lineData, pointed.x, function(d){return d.speed});
+            }
+
+            var fDist1 = function(p0, p1) { return Math.abs(p0-p1); };
+            
+            var nearestIndex;
+            if(  fDist1(lineData[interval.beg].speed, pointed.x)
+               < fDist1(lineData[interval.end].speed, pointed.x))
+            {
+                nearestIndex = interval.beg;
+            }else
+            {
+                nearestIndex = interval.end;
+            }
+            
+            var dist = Math.sqrt
+            (
+                  Math.pow(lineData[nearestIndex].speed - pointed.x, 2)
+                + Math.pow(lineData[nearestIndex].payload - pointed.y, 2)
+            );
+
+            if(self.nearestDataPoint.dist > dist)
+            {
+                self.nearestDataPoint.lineIndex = kLine;
+                self.nearestDataPoint.pointIndex = nearestIndex;
+                self.nearestDataPoint.dist = dist;
+            }
+        }
+
+        self.update();
+    //- tooltip processing
   }
 };
 
@@ -716,7 +870,6 @@ SimpleGraph.prototype.keydown = function() {
 
   return function()
   {
-    console.log(d3.event);
     switch (d3.event.keyCode)
     {
       case 82: // r
