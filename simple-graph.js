@@ -463,28 +463,27 @@ function SimpleGraph(elemid, options)
     .attr("class", "label");
   
   //+ add data lines
-      /*
-      gLines.append("path")
-        .attr("class", "line line1")
-        .attr("id", "line1")
-        .attr("d", this.lineGen(this.points));
-      
-      gLines.append("path")
-        .attr("class", "line line2")
-        .attr("id", "line2")
-        .attr("d", this.lineGen(this.points2));
-      */
       for(var kLine in this.data)
       {
           var lineData = this.data[kLine].aData;
 
           var color = getDistinctColor(kLine);
 
-          gLines.append("path")
+          var gLine = gLines.append("g")
+            .attr("id", "gLine"+kLine);
+
+          gLine.append("path")
             .attr("class", "line")
             .attr("style", "stroke: "+color)
-            .attr("id", "line"+kLine)
             .attr("d", this.lineGen(lineData));
+
+          var symbols = gLine.selectAll("circle")
+            .data(lineData, function(d){return d;});
+          symbols.enter().append("circle")
+            .attr("cx", function(d){return self.x(d.speed);})
+            .attr("cy", function(d){return self.y(d.payload);})
+            .attr("r", 2.0)
+            .attr("style", "fill: "+color);
          
           // add type labels
           var xpos = this.x(lineData[0].speed);
@@ -581,9 +580,18 @@ SimpleGraph.prototype.update = function() {
       for(var kLine in this.data)
       {
           var lineData = this.data[kLine].aData;
-          this.vis.select("#line"+kLine).attr("d", this.lineGen(lineData));
+          var gLine = this.vis.select("#gLine"+kLine);
+          
+          gLine.select("path").attr("d", this.lineGen(lineData));
 
-          // add type labels
+          // adjust symbols
+          var symbols = gLine
+            .selectAll("circle")
+            .data(lineData)
+            .attr("cx", function(d){return self.x(d.speed);})
+            .attr("cy", function(d){return self.y(d.payload);});
+            
+          // adjust type labels
           var xpos = this.x(lineData[0].speed);
           var ypos = this.y(lineData[0].payload);
           var invisible = false;
@@ -716,7 +724,6 @@ SimpleGraph.prototype.keydown = function() {
 
   return function()
   {
-    console.log(d3.event);
     switch (d3.event.keyCode)
     {
       case 82: // r
