@@ -550,7 +550,7 @@ function SimpleGraph(elemid, options)
         .attr("class", "axis")
         .text(this.options.ylabel)
         .style("text-anchor","middle")
-	    .attr("transform","translate(" + (this.size.width+50) + " " + this.size.height/2+") rotate(-90)");
+        .attr("transform","translate(" + (this.size.width+50) + " " + this.size.height/2+") rotate(-90)");
   }
 
   d3.select(this.div_chart)
@@ -589,7 +589,8 @@ SimpleGraph.prototype.update = function() {
             .selectAll("circle")
             .data(lineData)
             .attr("cx", function(d){return self.x(d.speed);})
-            .attr("cy", function(d){return self.y(d.payload);});
+            .attr("cy", function(d){return self.y(d.payload);})
+            .attr("r", 2);
             
           // adjust type labels
           var xpos = this.x(lineData[0].speed);
@@ -635,6 +636,15 @@ SimpleGraph.prototype.update = function() {
                 .select("text").attr("style", "display: none");
           }
       }
+      if(null != self.nearestDataPoint && null != self.nearestDataPoint.pointIndex)
+      {
+          var gLine = this.vis.select("#gLine"+self.nearestDataPoint.lineIndex);
+
+          var symbols = gLine
+            .selectAll("circle");
+          d3.select(symbols[0][self.nearestDataPoint.pointIndex])
+            .attr("r", 4);
+      }
   //- lines updated
   
   if (d3.event && d3.event.keyCode) {
@@ -643,16 +653,20 @@ SimpleGraph.prototype.update = function() {
   }
 }
 
-SimpleGraph.prototype.mousemove = function() {
+SimpleGraph.prototype.mousemove = function()
+{
   var self = this;
-  return function() {
+
+  return function()
+  {
     var p = d3.svg.mouse(self.vis[0][0]),
         t = d3.event.changedTouches;
-    
+
     if (self.dragged) {
       self.dragged.y = self.y.invert(Math.max(0, Math.min(self.size.height, p[1])));
       self.update();
     };
+
     if (!isNaN(self.downx)) {
       d3.select('body').style("cursor", "ew-resize");
       var rupx = self.x.invert(p[0]),
@@ -685,6 +699,55 @@ SimpleGraph.prototype.mousemove = function() {
       d3.event.preventDefault();
       d3.event.stopPropagation();
     }
+
+    //+ add tooltip
+        var pointed = {x: self.x.invert(p[0]), y: self.y.invert(p[1])};
+        self.nearestDataPoint = {lineIndex: null, pointIndex: null, dist: Infinity};
+
+        for(var kLine in self.data)
+        {
+            var lineData = self.data[kLine].aData;
+
+            var interval;
+            if(lineData[0].speed > pointed.x)
+            {
+                interval = {beg: 0, end: 0};
+            }else if(lineData[lineData.length-1].speed < pointed.x)
+            {
+                interval = {beg: lineData.length-1, end: lineData.length-1};
+            }else
+            {
+                interval = intervalIn(lineData, pointed.x, function(d){return d.speed});
+            }
+
+            var fDist1 = function(p0, p1) { return Math.abs(p0-p1); };
+            
+            var nearestIndex;
+            if(  fDist1(lineData[interval.beg].speed, pointed.x)
+               < fDist1(lineData[interval.end].speed, pointed.x))
+            {
+                nearestIndex = interval.beg;
+            }else
+            {
+                nearestIndex = interval.end;
+            }
+            
+            var dist = Math.sqrt
+            (
+                  Math.pow(lineData[nearestIndex].speed - pointed.x, 2)
+                + Math.pow(lineData[nearestIndex].payload - pointed.y, 2)
+            );
+
+            if(self.nearestDataPoint.dist > dist)
+            {
+                self.nearestDataPoint.lineIndex = kLine;
+                self.nearestDataPoint.pointIndex = nearestIndex;
+                self.nearestDataPoint.dist = dist;
+            }
+        }
+
+        self.update();
+    //- tooltip processing
   }
 };
 
